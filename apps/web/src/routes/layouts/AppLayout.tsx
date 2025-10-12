@@ -1,5 +1,15 @@
 import { Outlet, Link as RouterLink } from 'react-router-dom';
-import { Box, Container, Flex, Heading, HStack, Button, Text, Spinner } from '@chakra-ui/react';
+import {
+  Box,
+  Container,
+  Flex,
+  Heading,
+  HStack,
+  Button,
+  Text,
+  Spinner,
+  Badge
+} from '@chakra-ui/react';
 import { useAuth } from '../../app/providers/firebase/AuthProvider';
 
 export function AppLayout() {
@@ -30,15 +40,23 @@ export function AppLayout() {
             <Spinner color="blue.300" size="sm" />
           ) : user ? (
             <HStack spacing={4} color="blue.100">
+              <Badge colorScheme="green" borderRadius="full" px={3} py={1} fontSize="0.75rem">
+                Signed in
+              </Badge>
               <Text fontSize="sm">{user.email ?? user.uid}</Text>
               <Button variant="outline" size="sm" onClick={signOutUser} colorScheme="blue">
                 Sign out
               </Button>
             </HStack>
           ) : (
-            <Button as={RouterLink} to="/login" colorScheme="blue" size="sm">
-              Sign in
-            </Button>
+            <HStack spacing={3}>
+              <Badge colorScheme="yellow" borderRadius="full" px={3} py={1} fontSize="0.75rem">
+                Guest
+              </Badge>
+              <Button as={RouterLink} to="/login" colorScheme="blue" size="sm">
+                Sign in
+              </Button>
+            </HStack>
           )}
         </Flex>
         <Outlet />

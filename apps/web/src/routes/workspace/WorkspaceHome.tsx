@@ -1,4 +1,7 @@
 import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
   Box,
   Button,
   Divider,
@@ -42,6 +45,7 @@ export function WorkspaceHome() {
   const [error, setError] = useState<string | null>(null);
   const [retrievalPreview, setRetrievalPreview] = useState<string[]>([]);
   const [draftPreview, setDraftPreview] = useState<string>('');
+  const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -50,7 +54,8 @@ export function WorkspaceHome() {
         setProjects(data);
         setError(null);
       } catch (err) {
-        setError((err as Error).message);
+        const message = (err as Error).message;
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -61,7 +66,7 @@ export function WorkspaceHome() {
 
   const handleDraftPreview = useCallback(async () => {
     if (!projects.length) {
-      setError('No projects available yet.');
+      setInfo('No projects yet. Create one during onboarding to unlock drafting.');
       return;
     }
 
@@ -75,6 +80,7 @@ export function WorkspaceHome() {
 
     setDrafting(true);
     setError(null);
+    setInfo(null);
     setDraftPreview('');
     setRetrievalPreview([]);
 
@@ -87,7 +93,7 @@ export function WorkspaceHome() {
       });
 
       if (retrieval.chunks.length === 0) {
-        setDraftPreview('No chunks available yet. Upload and ingest sources to unlock retrieval.');
+        setInfo('No evidence yet. Upload and ingest sources to power the Section Writer.');
         return;
       }
 
@@ -115,11 +121,82 @@ export function WorkspaceHome() {
 
       setDraftPreview(draft.draft);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message.includes('Not authenticated') ? 'Please sign in again.' : message);
+      if (message.includes('Not authenticated')) {
+        setInfo('You were signed out. Sign back in to keep drafting.');
+      }
     } finally {
       setDrafting(false);
     }
   }, [projects]);
+
+  const projectList = () => {
+    if (loading) {
+      return (
+        <Stack spacing={3}>
+          <Skeleton height="20px" />
+          <Skeleton height="20px" />
+          <Skeleton height="20px" />
+        </Stack>
+      );
+    }
+
+    if (error) {
+      return (
+        <Alert status="error" borderRadius="lg" bg="rgba(220, 38, 38, 0.12)" color="red.200">
+          <AlertIcon />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    if (!projects.length) {
+      return (
+        <Alert status="info" borderRadius="lg" bg="rgba(59,130,246,0.12)" color="blue.100">
+          <AlertIcon />
+          <AlertDescription>
+            No projects yet. Start onboarding to generate your first Thesis Constitution.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    return (
+      <Stack spacing={3}>
+        {projects.map((project) => (
+          <Box
+            key={project.id}
+            border="1px solid rgba(63,131,248,0.25)"
+            borderRadius="xl"
+            px={6}
+            py={4}
+            bg="rgba(15,23,42,0.65)"
+          >
+            <Text fontWeight="semibold" color="blue.100">
+              {project.title}
+            </Text>
+            <Text color="blue.50" fontSize="sm">
+              {project.topic}
+            </Text>
+            <Text color="blue.200" fontSize="sm" mt={2}>
+              Research questions: {project.researchQuestions.length}
+            </Text>
+          </Box>
+        ))}
+
+        <Button
+          colorScheme="blue"
+          alignSelf="flex-start"
+          onClick={handleDraftPreview}
+          isLoading={drafting}
+          isDisabled={!projects.length}
+        >
+          Generate Section Draft Preview
+        </Button>
+      </Stack>
+    );
+  };
 
   return (
     <PageShell
@@ -157,87 +234,53 @@ export function WorkspaceHome() {
         <Heading size="md" color="blue.100">
           Project snapshot
         </Heading>
-        {loading ? (
-          <Stack spacing={3}>
-            <Skeleton height="20px" />
-            <Skeleton height="20px" />
-            <Skeleton height="20px" />
-          </Stack>
-        ) : error ? (
-          <Text color="red.300">{error}</Text>
-        ) : (
-          <Stack spacing={3}>
-            {projects.map((project) => (
-              <Box
-                key={project.id}
-                border="1px solid rgba(63,131,248,0.25)"
-                borderRadius="xl"
-                px={6}
-                py={4}
-                bg="rgba(15,23,42,0.65)"
-              >
-                <Text fontWeight="semibold" color="blue.100">
-                  {project.title}
-                </Text>
-                <Text color="blue.50" fontSize="sm">
-                  {project.topic}
-                </Text>
-                <Text color="blue.200" fontSize="sm" mt={2}>
-                  Research questions: {project.researchQuestions.length}
-                </Text>
-              </Box>
+        {projectList()}
+
+        {info ? (
+          <Alert status="info" borderRadius="lg" bg="rgba(59,130,246,0.12)" color="blue.100">
+            <AlertIcon />
+            <AlertDescription>{info}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {retrievalPreview.length > 0 ? (
+          <Stack
+            spacing={3}
+            border="1px solid rgba(63,131,248,0.2)"
+            borderRadius="xl"
+            px={6}
+            py={4}
+            bg="rgba(59,130,246,0.08)"
+          >
+            <Text fontWeight="semibold" color="blue.100">
+              Retrieved Evidence ({retrievalPreview.length})
+            </Text>
+            <Divider borderColor="rgba(148, 163, 230, 0.4)" />
+            {retrievalPreview.map((chunk, index) => (
+              <Text key={index} color="blue.50" fontSize="sm">
+                {chunk}
+              </Text>
             ))}
-
-            <Button
-              colorScheme="blue"
-              alignSelf="flex-start"
-              onClick={handleDraftPreview}
-              isLoading={drafting}
-              isDisabled={!projects.length}
-            >
-              Generate Section Draft Preview
-            </Button>
-
-            {retrievalPreview.length > 0 ? (
-              <Stack
-                spacing={3}
-                border="1px solid rgba(63,131,248,0.2)"
-                borderRadius="xl"
-                px={6}
-                py={4}
-                bg="rgba(59,130,246,0.08)"
-              >
-                <Text fontWeight="semibold" color="blue.100">
-                  Retrieved Evidence ({retrievalPreview.length})
-                </Text>
-                <Divider borderColor="rgba(148, 163, 230, 0.4)" />
-                {retrievalPreview.map((chunk, index) => (
-                  <Text key={index} color="blue.50" fontSize="sm">
-                    {chunk}
-                  </Text>
-                ))}
-              </Stack>
-            ) : null}
-
-            {draftPreview ? (
-              <Stack
-                spacing={3}
-                border="1px solid rgba(63,131,248,0.2)"
-                borderRadius="xl"
-                px={6}
-                py={4}
-                bg="rgba(17,24,39,0.85)"
-              >
-                <Text fontWeight="semibold" color="blue.100">
-                  Draft Preview
-                </Text>
-                <Text color="blue.50" whiteSpace="pre-wrap">
-                  {draftPreview}
-                </Text>
-              </Stack>
-            ) : null}
           </Stack>
-        )}
+        ) : null}
+
+        {draftPreview ? (
+          <Stack
+            spacing={3}
+            border="1px solid rgba(63,131,248,0.2)"
+            borderRadius="xl"
+            px={6}
+            py={4}
+            bg="rgba(17,24,39,0.85)"
+          >
+            <Text fontWeight="semibold" color="blue.100">
+              Draft Preview
+            </Text>
+            <Text color="blue.50" whiteSpace="pre-wrap">
+              {draftPreview}
+            </Text>
+          </Stack>
+        ) : null}
       </Stack>
     </PageShell>
   );

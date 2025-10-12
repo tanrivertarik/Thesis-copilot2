@@ -1,7 +1,11 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import { LandingScene } from './home/LandingScene';
-import { OnboardingLanding } from './onboarding/OnboardingLanding';
+import { OnboardingLayout } from './onboarding/OnboardingLayout';
+import { OnboardingOverview } from './onboarding/OnboardingOverview';
+import { ProjectDetailsStep } from './onboarding/ProjectDetailsStep';
+import { ResearchInputsStep } from './onboarding/ResearchInputsStep';
+import { SummaryStep } from './onboarding/SummaryStep';
 import { WorkspaceHome } from './workspace/WorkspaceHome';
 import { EditorShell } from './editor/EditorShell';
 import { Login } from './auth/Login';
@@ -24,9 +28,27 @@ const router = createBrowserRouter([
         path: 'onboarding',
         element: (
           <RequireAuth>
-            <OnboardingLanding />
+            <OnboardingLayout />
           </RequireAuth>
-        )
+        ),
+        children: [
+          {
+            index: true,
+            element: <OnboardingOverview />
+          },
+          {
+            path: 'start',
+            element: <ProjectDetailsStep />
+          },
+          {
+            path: 'sources',
+            element: <ResearchInputsStep />
+          },
+          {
+            path: 'summary',
+            element: <SummaryStep />
+          }
+        ]
       },
       {
         path: 'workspace',

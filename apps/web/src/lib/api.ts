@@ -1,5 +1,10 @@
 import type {
   Project,
+  ProjectCreateInput,
+  ProjectUpdateInput,
+  Source,
+  SourceCreateInput,
+  SourceIngestionResult,
   RetrievalRequest,
   RetrievalResult,
   SectionDraftRequest,
@@ -50,8 +55,38 @@ export async function fetchProjects(): Promise<Project[]> {
   return request<Project[]>('/api/projects');
 }
 
-export async function fetchSources(projectId: string) {
-  return request(`/api/projects/${projectId}/sources`);
+export async function fetchSources(projectId: string): Promise<Source[]> {
+  return request<Source[]>(`/api/projects/${projectId}/sources`);
+}
+
+export async function createProject(payload: ProjectCreateInput): Promise<Project> {
+  return request<Project>('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateProject(
+  projectId: string,
+  payload: ProjectUpdateInput
+): Promise<Project> {
+  return request<Project>(`/api/projects/${projectId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function createSource(payload: SourceCreateInput): Promise<Source> {
+  return request<Source>('/api/sources', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function ingestSource(sourceId: string): Promise<SourceIngestionResult> {
+  return request<SourceIngestionResult>(`/api/sources/${sourceId}/ingest`, {
+    method: 'POST'
+  });
 }
 
 export async function submitRetrieval(

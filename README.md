@@ -57,3 +57,12 @@ The project is in planning. Documentation in `docs/` is the single source of tru
 - Run `firebase init` to populate `infra/firebase` with hosting, rules, and emulator settings.
 - Extend environment templates for backend services (OpenRouter keys, Firestore emulator toggles).
 - Decide on shared logging/telemetry utilities for both apps.
+
+## Testing & Emulators
+- **Unit/Lint:** `pnpm lint`, `pnpm --filter @thesis-copilot/api typecheck`, `pnpm --filter @thesis-copilot/web typecheck`.
+- **Firestore integration (planned):**
+  1. Install Firebase tools: `npm i -g firebase-tools`.
+  2. From `infra/firebase/`, run `firebase emulators:start --only firestore --import ./seed --export-on-exit` (once seeding scripts land, the `seed` folder will hold fixture data).
+  3. Start the API with `FIRESTORE_EMULATOR_HOST=localhost:8080` so all reads/writes hit the emulator.
+  4. Run integration tests (to be added under `tests/` with Vitest/Playwright) that create projects, ingest sources, and verify drafting endpoints without touching production data.
+- **Auth workflow:** Enable Google Sign-In provider in Firebase console; the frontend retrieves Firebase ID tokens and the API validates them with Firebase Admin.
