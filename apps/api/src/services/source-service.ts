@@ -6,55 +6,132 @@ import type {
   SourceChunk,
   SourceUploadInput
 } from '@thesis-copilot/shared';
-import { SourceStatusSchema } from '@thesis-copilot/shared';
+import {
+  SourceStatusSchema,
+  SourceSchema,
+  SourceSummarySchema
+} from '@thesis-copilot/shared';
 import { createEmbeddings, generateChatCompletion } from '../ai/openrouter.js';
+import { getFirestore } from '../lib/firestore.js';
 import { chunkText } from './text-utils.js';
 
-type ChunkStoreKey = string; // projectId
+const SOURCES_COLLECTION = 'sources';
+const SOURCE_UPLOADS_COLLECTION = 'sourceUploads';
+const SOURCE_CHUNKS_COLLECTION = 'sourceChunks';
 
-const sources = new Map<string, Source>();
-const chunksByProject = new Map<ChunkStoreKey, SourceChunk[]>();
-const sourcePayloads = new Map<string, SourceUploadInput>();
+function docToSource(
+  snapshot: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData>
+): Source | null {
+  if (!snapshot.exists) {
+    return null;
+  }
+  const data = snapshot.data();
+  const parsed = SourceSchema.safeParse({ id: snapshot.id, ...data });
+  if (!parsed.success) {
+    console.error('[source-service] Failed to parse source document', parsed.error.format());
+    return null;
+  }
+  return parsed.data;
+}
+
+async function deleteExistingChunks(sourceId: string) {
+  const db = getFirestore();
+  const snapshot = await db
+    .collection(SOURCE_CHUNKS_COLLECTION)
+    .where('sourceId', '==', sourceId)
+    .get();
+
+  if (snapshot.empty) {
+    return;
+  }
+
+  const batch = db.batch();
+  snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+  await batch.commit();
+}
 
 export async function listSources(ownerId: string, projectId: string): Promise<Source[]> {
-  return Array.from(sources.values()).filter(
-    (source) => source.projectId === projectId && source.ownerId === ownerId
-  );
+  const db = getFirestore();
+  const snapshot = await db
+    .collection(SOURCES_COLLECTION)
+    .where('ownerId', '==', ownerId)
+    .where('projectId', '==', projectId)
+    .orderBy('createdAt', 'desc')
+    .get();
+
+  return snapshot.docs
+    .map(docToSource)
+    .filter((source): source is Source => Boolean(source));
 }
 
 export async function createSource(
   ownerId: string,
   input: SourceCreateInput
 ): Promise<Source> {
+  const db = getFirestore();
   const now = new Date().toISOString();
+  const id = randomUUID();
+
   const source: Source = {
-    id: randomUUID(),
+    id,
     ownerId,
     projectId: input.projectId,
     kind: input.kind,
     status: input.upload ? 'PROCESSING' : 'UPLOADED',
     metadata: input.metadata,
+    summary: undefined,
     createdAt: now,
     updatedAt: now
   };
 
-  sources.set(source.id, source);
+  await db.collection(SOURCES_COLLECTION).doc(id).set(source);
+
   if (input.upload) {
-    sourcePayloads.set(source.id, input.upload);
+    await uploadSourceContent(ownerId, id, input.upload);
   }
+
   return source;
+}
+
+export async function uploadSourceContent(
+  ownerId: string,
+  sourceId: string,
+  payload: SourceUploadInput
+): Promise<boolean> {
+  const db = getFirestore();
+  const sourceDoc = await db.collection(SOURCES_COLLECTION).doc(sourceId).get();
+  const source = docToSource(sourceDoc);
+  if (!source || source.ownerId !== ownerId) {
+    return false;
+  }
+
+  await db
+    .collection(SOURCE_UPLOADS_COLLECTION)
+    .doc(sourceId)
+    .set({ ownerId, projectId: source.projectId, ...payload, createdAt: new Date().toISOString() });
+
+  await db
+    .collection(SOURCES_COLLECTION)
+    .doc(sourceId)
+    .set({ status: 'PROCESSING', updatedAt: new Date().toISOString() }, { merge: true });
+
+  return true;
 }
 
 export async function ingestSource(
   ownerId: string,
   sourceId: string
 ): Promise<SourceIngestionResult | null> {
-  const source = sources.get(sourceId);
+  const db = getFirestore();
+  const sourceDocRef = db.collection(SOURCES_COLLECTION).doc(sourceId);
+  const sourceSnapshot = await sourceDocRef.get();
+  const source = docToSource(sourceSnapshot);
   if (!source || source.ownerId !== ownerId) {
     return null;
   }
 
-  const payload = sourcePayloads.get(sourceId);
+  const payloadSnapshot = await db.collection(SOURCE_UPLOADS_COLLECTION).doc(sourceId).get();
+  const payload = payloadSnapshot.data() as (SourceUploadInput & { data: string }) | undefined;
   if (!payload) {
     return {
       sourceId,
@@ -66,18 +143,10 @@ export async function ingestSource(
     };
   }
 
-  const updatedSource: Source = {
-    ...source,
-    status: 'READY',
-    updatedAt: new Date().toISOString()
-  };
-
-  // Extract text
   const extractionStart = Date.now();
   const extractedText = await extractText(payload);
   const chunks = chunkText(extractedText.text, 800);
 
-  // Generate embeddings
   const { embeddings, latencyMs: embeddingLatency, usage: embeddingUsage, cached } =
     await createEmbeddings(chunks.map((chunk) => chunk.text));
   if (embeddingUsage) {
@@ -87,7 +156,6 @@ export async function ingestSource(
     );
   }
 
-  // Summarize
   const summaryResponse = await generateChatCompletion({
     model: 'openai/gpt-4o-mini',
     systemPrompt:
@@ -116,13 +184,13 @@ export async function ingestSource(
     );
   }
 
-  const summaryOutput = summaryResponse.output;
-  let summary = updatedSource.summary;
+  let summary = source.summary;
   try {
-    summary = JSON.parse(summaryOutput);
+    const parsed = SourceSummarySchema.parse(JSON.parse(summaryResponse.output));
+    summary = parsed;
   } catch (error) {
     summary = {
-      abstract: summaryOutput,
+      abstract: summaryResponse.output,
       bulletPoints: [`Failed to parse JSON summary: ${(error as Error).message}`]
     };
   }
@@ -141,20 +209,33 @@ export async function ingestSource(
     }
   }));
 
-  const existingChunks = chunksByProject.get(source.projectId) ?? [];
-  chunksByProject.set(source.projectId, [...existingChunks, ...sourceChunks]);
+  await deleteExistingChunks(sourceId);
 
-  sourcePayloads.delete(sourceId);
+  const batch = db.batch();
+  sourceChunks.forEach((chunk) => {
+    const ref = db.collection(SOURCE_CHUNKS_COLLECTION).doc(chunk.id);
+    batch.set(ref, chunk);
+  });
 
-  updatedSource.summary = summary;
-  updatedSource.embeddingModel = cached ? 'mock-embedding' : 'openai/text-embedding-3-small';
-  sources.set(sourceId, updatedSource);
+  batch.set(
+    sourceDocRef,
+    {
+      status: 'READY',
+      summary,
+      embeddingModel: cached ? 'mock-embedding' : 'openai/text-embedding-3-small',
+      updatedAt: new Date().toISOString()
+    },
+    { merge: true }
+  );
+
+  batch.delete(db.collection(SOURCE_UPLOADS_COLLECTION).doc(sourceId));
+  await batch.commit();
 
   return {
     sourceId,
-    status: updatedSource.status,
-    summary: updatedSource.summary,
-    embeddingModel: updatedSource.embeddingModel,
+    status: 'READY',
+    summary,
+    embeddingModel: cached ? 'mock-embedding' : 'openai/text-embedding-3-small',
     chunkCount: sourceChunks.length,
     processingTimeMs:
       Date.now() - extractionStart + embeddingLatency + summaryResponse.latencyMs
@@ -162,40 +243,29 @@ export async function ingestSource(
 }
 
 export async function getChunksForProject(projectId: string): Promise<SourceChunk[]> {
-  return chunksByProject.get(projectId) ?? [];
+  const db = getFirestore();
+  const snapshot = await db
+    .collection(SOURCE_CHUNKS_COLLECTION)
+    .where('projectId', '==', projectId)
+    .orderBy('order')
+    .get();
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data() as SourceChunk;
+    return { ...data, id: doc.id };
+  });
 }
 
-export async function updateSourceStatus(
-  sourceId: string,
-  status: string
-): Promise<void> {
+export async function updateSourceStatus(sourceId: string, status: string): Promise<void> {
+  const db = getFirestore();
   const parsed = SourceStatusSchema.safeParse(status);
   if (!parsed.success) {
     throw new Error(`Invalid source status supplied: ${status}`);
   }
-  const source = sources.get(sourceId);
-  if (!source) {
-    return;
-  }
-  sources.set(sourceId, { ...source, status: parsed.data, updatedAt: new Date().toISOString() });
-}
-
-export async function uploadSourceContent(
-  ownerId: string,
-  sourceId: string,
-  payload: SourceUploadInput
-): Promise<boolean> {
-  const source = sources.get(sourceId);
-  if (!source || source.ownerId !== ownerId) {
-    return false;
-  }
-  sourcePayloads.set(sourceId, payload);
-  sources.set(sourceId, {
-    ...source,
-    status: 'PROCESSING',
-    updatedAt: new Date().toISOString()
-  });
-  return true;
+  await db
+    .collection(SOURCES_COLLECTION)
+    .doc(sourceId)
+    .set({ status: parsed.data, updatedAt: new Date().toISOString() }, { merge: true });
 }
 
 async function extractText(payload: SourceUploadInput): Promise<{
@@ -209,7 +279,7 @@ async function extractText(payload: SourceUploadInput): Promise<{
 
   const buffer = Buffer.from(payload.data, 'base64');
   const pdfModule = (await import('pdf-parse')) as unknown as {
-    default?: (data: Buffer) => Promise<{ text: string }>;
+    default?: (data: Buffer) => Promise<{ text: string }>
   };
   const pdfParseFn =
     pdfModule.default ??

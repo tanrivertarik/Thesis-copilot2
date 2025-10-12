@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    match /projects/{projectId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+
+    match /sources/{sourceId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+
+    match /sourceChunks/{chunkId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+      allow write: if false; // written server-side only.
+    }
+
+    match /sourceUploads/{uploadId} {
+      allow read: if false;
+      allow write: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+  }
+}

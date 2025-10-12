@@ -1,21 +1,12 @@
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useMemo } from 'react';
-import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { env } from '../../../lib/env';
+import type { FirebaseApp } from 'firebase/app';
+import { firebaseApp } from './app-instance';
 
-const FirebaseAppContext = createContext<FirebaseApp | null>(null);
-
-function createFirebaseApp() {
-  const existing = getApps();
-  if (existing.length) {
-    return existing[0];
-  }
-
-  return initializeApp(env.firebase);
-}
+const FirebaseAppContext = createContext<FirebaseApp | null>(firebaseApp);
 
 export function FirebaseProvider({ children }: PropsWithChildren) {
-  const app = useMemo(createFirebaseApp, []);
+  const app = useMemo(() => firebaseApp, []);
   return <FirebaseAppContext.Provider value={app}>{children}</FirebaseAppContext.Provider>;
 }
 

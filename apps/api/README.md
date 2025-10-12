@@ -1,6 +1,6 @@
 # Thesis Copilot API
 
-This package contains the Node.js (Express) backend responsible for project orchestration, source processing, AI calls, and exports. The Phase 0 scaffold ships with TypeScript, modular routing, and baseline middleware (helmet, cors, morgan). Project CRUD, source ingestion (including extraction + embeddings), retrieval, and Section Writer endpoints are wired against an in-memory store to unblock frontend integration while Firestore wiring lands.
+This package contains the Node.js (Express) backend responsible for project orchestration, source processing, AI calls, and exports. The Phase 0 scaffold ships with TypeScript, modular routing, and baseline middleware (helmet, cors, morgan). Project CRUD, source ingestion (extraction + embeddings), retrieval, and Section Writer endpoints now persist to Firestore via the Firebase Admin SDK (with optional emulator support).
 
 ## Planned Structure
 - `src/index.ts`: HTTP entry point and server bootstrap.
@@ -26,7 +26,13 @@ FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE K
 OPENROUTER_API_KEY=
 ```
 
-> `FIREBASE_ADMIN_*` and `OPENROUTER_API_KEY` are optional during local development but will be required once Firestore + model calls are wired.
+> `FIREBASE_ADMIN_*` credentials are required (emulator or service account). `OPENROUTER_API_KEY` is optional locally—without it, the API falls back to deterministic mocks.
+
+### Local development checklist
+1. Install Firebase tools (`npm i -g firebase-tools`) and run `firebase emulators:start --only firestore` from `infra/firebase` (rules apply automatically).
+2. Set `FIRESTORE_EMULATOR_HOST=localhost:8080` when using the emulator (see `.config/env/local.example.env`).
+3. Provide service account credentials (copy JSON into env vars or set `GOOGLE_APPLICATION_CREDENTIALS`).
+4. Ensure the frontend supplies a Firebase ID token in the `Authorization: Bearer <token>` header; anonymous/mock headers are no longer accepted.
 
 ## REST Endpoints (Phase 0 stubs)
 - `GET /api/projects` — List projects for the current user (mock auth via `x-user-id` header, defaults to `demo-user`).
@@ -48,6 +54,6 @@ curl -H "x-user-id: demo-user" http://localhost:3001/api/projects
 ```
 
 ## Next Steps
-1. Swap the in-memory stores for Firestore + vector storage and enforce Firebase Admin auth verification.
-2. Move ingestion + retrieval to background workers/queues and add persistence for chunk embeddings.
+1. Harden Firestore data access with proper security rules and Firebase Auth token verification (replace mock `x-user-id`).
+2. Move ingestion + retrieval to background workers/queues and add persistence for chunk embeddings in a dedicated vector store (e.g., Firestore + Vertex AI Matching Engine, LanceDB).
 3. Harden OpenRouter calls with retry/backoff, observe token spend, and expose telemetry metrics.

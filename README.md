@@ -38,7 +38,7 @@ The project is in planning. Documentation in `docs/` is the single source of tru
 ```
 .
 ├── apps/
-│   ├── api/            # Express backend scaffold (env validated, health checks)
+│   ├── api/            # Express backend (Firestore persistence, ingestion, retrieval)
 │   └── web/            # React frontend scaffold (Chakra UI + router + Firebase bootstrap)
 ├── packages/
 │   ├── prompting/      # Prompt templates, builders, validators
@@ -53,7 +53,7 @@ The project is in planning. Documentation in `docs/` is the single source of tru
 
 ### Phase 0 Next Steps
 - Implement Firebase Auth flows and onboarding UI modules in the web app (`apps/web`).
-- Replace in-memory stores with Firestore/vector persistence and Firebase Admin auth.
+- Tighten backend security: verify Firebase ID tokens and add Firestore/Storage security rules.
 - Run `firebase init` to populate `infra/firebase` with hosting, rules, and emulator settings.
 - Extend environment templates for backend services (OpenRouter keys, Firestore emulator toggles).
 - Decide on shared logging/telemetry utilities for both apps.

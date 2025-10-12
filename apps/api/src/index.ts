@@ -10,7 +10,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env.js';
 import { registerRoutes } from './routes/index.js';
-import { mockAuth } from './middleware/mockAuth.js';
+import { authMiddleware } from './middleware/auth.js';
 import { HttpError } from './utils/http.js';
 
 const app = express();
@@ -23,7 +23,7 @@ app.use(
 );
 app.use(json({ limit: '1mb' }));
 app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
-app.use(mockAuth as unknown as RequestHandler);
+app.use(authMiddleware as unknown as RequestHandler);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({

@@ -4,15 +4,36 @@ import type {
   ProjectCreateInput,
   ProjectUpdateInput
 } from '@thesis-copilot/shared';
+import { getFirestore } from '../lib/firestore.js';
 
-const projects = new Map<string, Project>();
+const COLLECTION = 'projects';
+
+function docToProject(
+  snapshot: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData>
+): Project | null {
+  if (!snapshot.exists) {
+    return null;
+  }
+  const data = snapshot.data() as Project;
+  return { ...data, id: snapshot.id };
+}
 
 export async function listProjects(ownerId: string): Promise<Project[]> {
-  return Array.from(projects.values()).filter((project) => project.ownerId === ownerId);
+  const db = getFirestore();
+  const snapshot = await db
+    .collection(COLLECTION)
+    .where('ownerId', '==', ownerId)
+    .orderBy('createdAt', 'desc')
+    .get();
+  return snapshot.docs
+    .map(docToProject)
+    .filter((project): project is Project => Boolean(project));
 }
 
 export async function getProject(ownerId: string, projectId: string): Promise<Project | null> {
-  const project = projects.get(projectId);
+  const db = getFirestore();
+  const doc = await db.collection(COLLECTION).doc(projectId).get();
+  const project = docToProject(doc);
   if (!project || project.ownerId !== ownerId) {
     return null;
   }
@@ -23,9 +44,11 @@ export async function createProject(
   ownerId: string,
   input: ProjectCreateInput
 ): Promise<Project> {
+  const db = getFirestore();
   const now = new Date().toISOString();
+  const id = randomUUID();
   const project: Project = {
-    id: randomUUID(),
+    id,
     ownerId,
     title: input.title,
     topic: input.topic,
@@ -38,7 +61,7 @@ export async function createProject(
     updatedAt: now
   };
 
-  projects.set(project.id, project);
+  await db.collection(COLLECTION).doc(id).set(project);
   return project;
 }
 
@@ -47,7 +70,10 @@ export async function updateProject(
   projectId: string,
   input: ProjectUpdateInput
 ): Promise<Project | null> {
-  const existing = projects.get(projectId);
+  const db = getFirestore();
+  const docRef = db.collection(COLLECTION).doc(projectId);
+  const snapshot = await docRef.get();
+  const existing = docToProject(snapshot);
   if (!existing || existing.ownerId !== ownerId) {
     return null;
   }
@@ -59,54 +85,62 @@ export async function updateProject(
     updatedAt: new Date().toISOString()
   };
 
-  projects.set(projectId, updated);
+  await docRef.set(updated, { merge: true });
   return updated;
 }
 
 export async function deleteProject(ownerId: string, projectId: string): Promise<boolean> {
-  const existing = projects.get(projectId);
-  if (!existing || existing.ownerId !== ownerId) {
+  const db = getFirestore();
+  const docRef = db.collection(COLLECTION).doc(projectId);
+  const snapshot = await docRef.get();
+  const project = docToProject(snapshot);
+  if (!project || project.ownerId !== ownerId) {
     return false;
   }
-  projects.delete(projectId);
+  await docRef.delete();
   return true;
 }
 
-// Seed a sample project for demo purposes
+// Seed a sample project for demo purposes (development only)
 void (async () => {
-  const ownerId = 'demo-user';
-  if ((await listProjects(ownerId)).length === 0) {
-    await createProject(ownerId, {
-      title: 'AI-Augmented Literature Review',
-      topic: 'Exploring AI assistance in academic writing workflows',
-      researchQuestions: [
-        'How do AI copilots affect the quality of literature reviews?',
-        'What guardrails are necessary to maintain academic integrity?'
-      ],
-      citationStyle: 'APA',
-      visibility: 'PRIVATE',
-      thesisStatement:
-        'AI copilots can accelerate drafting while maintaining academic integrity when combined with source-grounded guardrails.',
-      constitution: {
-        scope: 'Investigate AI-assisted thesis workflows within graduate programs.',
-        toneGuidelines: 'Formal academic tone with emphasis on evidence-backed claims.',
-        coreArgument:
-          'With proper safeguards, AI copilots reduce authoring friction without compromising academic standards.',
-        outline: {
-          sections: [
-            {
-              id: randomUUID(),
-              title: 'Introduction',
-              objective: 'Frame the problem space and research motivation.'
-            },
-            {
-              id: randomUUID(),
-              title: 'Methodology',
-              objective: 'Detail evaluation criteria for AI-assisted drafting.'
-            }
-          ]
+  try {
+    const ownerId = 'demo-user';
+    const existing = await listProjects(ownerId);
+    if (existing.length === 0) {
+      await createProject(ownerId, {
+        title: 'AI-Augmented Literature Review',
+        topic: 'Exploring AI assistance in academic writing workflows',
+        researchQuestions: [
+          'How do AI copilots affect the quality of literature reviews?',
+          'What guardrails are necessary to maintain academic integrity?'
+        ],
+        citationStyle: 'APA',
+        visibility: 'PRIVATE',
+        thesisStatement:
+          'AI copilots can accelerate drafting while maintaining academic integrity when combined with source-grounded guardrails.',
+        constitution: {
+          scope: 'Investigate AI-assisted thesis workflows within graduate programs.',
+          toneGuidelines: 'Formal academic tone with emphasis on evidence-backed claims.',
+          coreArgument:
+            'With proper safeguards, AI copilots reduce authoring friction without compromising academic standards.',
+          outline: {
+            sections: [
+              {
+                id: randomUUID(),
+                title: 'Introduction',
+                objective: 'Frame the problem space and research motivation.'
+              },
+              {
+                id: randomUUID(),
+                title: 'Methodology',
+                objective: 'Detail evaluation criteria for AI-assisted drafting.'
+              }
+            ]
+          }
         }
-      }
-    });
+      });
+    }
+  } catch (error) {
+    console.error('[seed] failed to create sample project', error);
   }
 })();

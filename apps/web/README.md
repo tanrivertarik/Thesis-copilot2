@@ -32,6 +32,8 @@ VITE_FIREBASE_MEASUREMENT_ID=
 VITE_API_BASE_URL=http://localhost:3001
 ```
 
+Enable the Google Sign-In provider in your Firebase console (`Authentication → Sign-in method`) so the login flow succeeds locally.
+
 ## Next Steps
 1. Implement Firebase Auth flows (sign-in, sign-out) and protect workspace/editor routes.
 2. Extract shared UI primitives (buttons, layout, typography) into `packages/shared`.
