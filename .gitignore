@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+.next/
+.turbo/
+
+# Logs
+logs/
+*.log
+
+# Tests & Coverage
+coverage/
+
+# Environment files
+.env
+.env.*
+.firebaserc
+firebase-debug.log
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+
+# pnpm
+pnpm-debug.log

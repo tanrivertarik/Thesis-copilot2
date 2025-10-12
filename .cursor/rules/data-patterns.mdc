@@ -1,0 +1,36 @@
+---
+globs: *.ts,*.tsx,*.js,*.jsx
+description: "Firebase data patterns and storage guidelines"
+---
+
+# Data Handling & Firebase Patterns
+
+## Firestore Schema Structure
+- **Projects:** Store thesis metadata, constitution versions, outline structure
+- **Sources:** Document metadata, extracted text chunks, embeddings, citations  
+- **Drafts:** Section content, citation placeholders, edit history, provenance mapping
+- **Users:** Authentication, subscription tiers, usage limits
+
+## Storage Organization
+- **Raw Uploads:** Original PDF/text files in Firebase Storage buckets
+- **Generated Artifacts:** Processed summaries, export files, cached embeddings
+- **Chunk Metadata:** Vector embeddings with source mapping for retrieval
+
+## Data Flow Requirements
+1. **Source Processing:** Upload → Extract → Summarize → Generate Citations → Store Embeddings
+2. **Section Generation:** Retrieve Chunks → Build Context → Generate Draft → Validate Citations
+3. **Export Pipeline:** Compile Sections → Resolve Citations → Format Document → Generate Download
+
+## Security & Privacy
+- Enforce Firebase Auth tokens on all requests
+- Implement role-based Firestore security rules
+- Support PII redaction for sensitive academic content
+- Log metadata for debugging (full text only with user consent)
+
+## Performance Considerations  
+- Use Firebase real-time sync for editor autosave (every 30 seconds)
+- Implement Redis caching for prompt context and retrieval results
+- Rate limit LLM calls per user to manage costs
+- Monitor token usage and extraction success rates
+
+Reference [docs/05-technology-plan.md](mdc:docs/05-technology-plan.md) for complete data architecture details.

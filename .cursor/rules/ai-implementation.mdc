@@ -1,0 +1,30 @@
+---
+description: "Guidelines for AI/LLM implementation and prompt engineering"
+---
+
+# AI Implementation Guidelines
+
+## LLM Usage Patterns
+- **Heavy Generation:** Use `gemini/gemini-2.5-pro` for Thesis Constitution, Section Writing
+- **Lightweight Tasks:** Use `gemini/gemini-flash` for summarization, rewrite assistance
+- **Temperature Settings:** 0.3-0.4 for factual content, higher for creative tasks
+
+## Critical Requirements
+1. **Retrieval-Augmented Generation:** All AI outputs must be grounded in user-uploaded sources
+2. **Citation Placeholders:** Generate `[CITE:sourceId]` tokens that map to specific source chunks
+3. **Hallucination Prevention:** Validate that every citation maps to included source material
+4. **Token Management:** Implement adaptive prompt truncation and monitor per-user costs
+
+## Prompt Engineering Standards
+- Include explicit instructions to cite using `[CITE:sourceId]` format
+- Avoid unsupported claims not present in source material  
+- Maintain academic tone and writing standards
+- Preserve user edits when providing rewrite assistance
+
+## Quality Assurance
+- Implement automatic hallucination checks using retrieval overlap scoring
+- Add banned content filters for unsupported sources
+- Include academic tone classifier for response validation
+- Create moderation workflow for flagged outputs
+
+Refer to [tasks.md](mdc:tasks.md) sections 1-7 for detailed implementation specifications.

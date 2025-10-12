@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "useDefineForClassFields": false,
+    "isolatedModules": true,
+    "noFallthroughCasesInSwitch": true,
+    "lib": ["ES2020", "DOM"],
+    "baseUrl": ".",
+    "paths": {
+      "@thesis-copilot/shared": ["packages/shared/src/index.ts"],
+      "@thesis-copilot/shared/*": ["packages/shared/src/*"]
+    }
+  }
+}
