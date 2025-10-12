@@ -53,13 +53,19 @@ export async function createProject(
     title: input.title,
     topic: input.topic,
     researchQuestions: input.researchQuestions,
-    thesisStatement: input.thesisStatement,
     citationStyle: input.citationStyle,
-    constitution: input.constitution,
     visibility: input.visibility ?? 'PRIVATE',
     createdAt: now,
     updatedAt: now
   };
+
+  if (input.thesisStatement) {
+    project.thesisStatement = input.thesisStatement;
+  }
+
+  if (input.constitution) {
+    project.constitution = input.constitution;
+  }
 
   await db.collection(COLLECTION).doc(id).set(project);
   return project;
@@ -81,11 +87,26 @@ export async function updateProject(
   const updated: Project = {
     ...existing,
     ...input,
-    constitution: input.constitution ?? existing.constitution,
     updatedAt: new Date().toISOString()
   };
 
-  await docRef.set(updated, { merge: true });
+  if (input.thesisStatement === undefined) {
+    delete (updated as Partial<Project>).thesisStatement;
+  }
+
+  if (input.constitution === undefined) {
+    updated.constitution = existing.constitution;
+  }
+
+  const toWrite = { ...updated } as Record<string, unknown>;
+  if (toWrite.thesisStatement === undefined) {
+    delete toWrite.thesisStatement;
+  }
+  if (toWrite.constitution === undefined) {
+    delete toWrite.constitution;
+  }
+
+  await docRef.set(toWrite, { merge: true });
   return updated;
 }
 
