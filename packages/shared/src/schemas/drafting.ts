@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { IdSchema, ThesisSectionSchema } from './common.js';
 import { SourceChunkSchema } from './retrieval.js';
+import { DraftCitationSchema } from './draft.js';
 
 export const SectionDraftRequestSchema = z.object({
   projectId: IdSchema,
@@ -39,5 +40,45 @@ export const SectionDraftResponseSchema = z.object({
   latencyMs: z.number().nonnegative()
 });
 
+export const RewriteDraftRequestSchema = z.object({
+  projectId: IdSchema,
+  sectionId: IdSchema,
+  paragraphId: IdSchema,
+  originalHtml: z.string(),
+  editedHtml: z.string(),
+  citations: z.array(DraftCitationSchema).default([]),
+  thesisSummary: z
+    .object({
+      scope: z.string().optional(),
+      toneGuidelines: z.string().optional(),
+      coreArgument: z.string().optional()
+    })
+    .optional(),
+  citationStyle: z.string().optional(),
+  surroundingParagraphs: z
+    .object({
+      previous: z.array(z.string()).default([]),
+      next: z.array(z.string()).default([])
+    })
+    .optional(),
+  maxTokens: z.number().int().positive().max(1024).default(350)
+});
+
+export const RewriteDraftResponseSchema = z.object({
+  paragraphId: IdSchema,
+  suggestionHtml: z.string(),
+  reasoning: z.string().optional(),
+  tokenUsage: z
+    .object({
+      promptTokens: z.number().optional(),
+      completionTokens: z.number().optional(),
+      totalTokens: z.number().optional()
+    })
+    .optional(),
+  latencyMs: z.number().nonnegative()
+});
+
 export type SectionDraftRequest = z.infer<typeof SectionDraftRequestSchema>;
 export type SectionDraftResponse = z.infer<typeof SectionDraftResponseSchema>;
+export type RewriteDraftRequest = z.infer<typeof RewriteDraftRequestSchema>;
+export type RewriteDraftResponse = z.infer<typeof RewriteDraftResponseSchema>;

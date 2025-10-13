@@ -3,6 +3,7 @@ import { projectsRouter } from './projects.js';
 import { sourcesRouter } from './sources.js';
 import { retrievalRouter } from './retrieval.js';
 import { draftingRouter } from './drafting.js';
+import { draftsRouter } from './drafts.js';
 
 export function registerRoutes(app: Express) {
   app.get('/', (_req, res) => {
@@ -16,4 +17,5 @@ export function registerRoutes(app: Express) {
   app.use('/api', sourcesRouter);
   app.use('/api', retrievalRouter);
   app.use('/api', draftingRouter);
+  app.use('/api', draftsRouter);
 }

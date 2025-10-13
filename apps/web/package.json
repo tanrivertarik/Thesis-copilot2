@@ -11,10 +11,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@thesis-copilot/shared": "workspace:*",
     "@chakra-ui/react": "^2.8.2",
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
+    "@thesis-copilot/shared": "workspace:*",
+    "@tiptap/core": "^3.6.6",
+    "@tiptap/pm": "^3.6.6",
+    "@tiptap/react": "^3.6.6",
+    "@tiptap/starter-kit": "^3.6.6",
     "firebase": "^12.4.0",
     "framer-motion": "^11.2.9",
     "react": "^19.1.1",

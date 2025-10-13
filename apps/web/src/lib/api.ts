@@ -1,14 +1,18 @@
 import type {
+  Draft,
+  DraftSaveInput,
   Project,
   ProjectCreateInput,
   ProjectUpdateInput,
-  Source,
-  SourceCreateInput,
-  SourceIngestionResult,
   RetrievalRequest,
   RetrievalResult,
+  RewriteDraftRequest,
+  RewriteDraftResponse,
   SectionDraftRequest,
-  SectionDraftResponse
+  SectionDraftResponse,
+  Source,
+  SourceCreateInput,
+  SourceIngestionResult
 } from '@thesis-copilot/shared';
 import { env } from './env';
 import { getIdToken } from './auth-token';
@@ -53,6 +57,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function fetchProjects(): Promise<Project[]> {
   return request<Project[]>('/api/projects');
+}
+
+export async function fetchDraft(
+  projectId: string,
+  sectionId: string
+): Promise<Draft | null> {
+  try {
+    return await request<Draft>(`/api/projects/${projectId}/drafts/${sectionId}`);
+  } catch (error) {
+    if (error instanceof Error && /API 404/.test(error.message)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function saveDraft(
+  projectId: string,
+  sectionId: string,
+  payload: DraftSaveInput
+): Promise<Draft> {
+  return request<Draft>(`/api/projects/${projectId}/drafts/${sectionId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function fetchSources(projectId: string): Promise<Source[]> {
@@ -102,6 +131,15 @@ export async function generateDraft(
   payload: SectionDraftRequest
 ): Promise<SectionDraftResponse> {
   return request<SectionDraftResponse>('/api/drafting/section', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function requestParagraphRewrite(
+  payload: RewriteDraftRequest
+): Promise<RewriteDraftResponse> {
+  return request<RewriteDraftResponse>('/api/drafting/rewrite', {
     method: 'POST',
     body: JSON.stringify(payload)
   });
