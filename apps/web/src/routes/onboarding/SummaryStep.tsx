@@ -1,11 +1,22 @@
 import { Button, Divider, Stack, Text } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../shared/PageShell';
-import { useOnboarding } from './OnboardingContext';
+import { useOnboarding, useOnboardingStepNavigation } from './OnboardingContext';
 
 export function SummaryStep() {
   const navigate = useNavigate();
   const { project, ingestionResult, resetIngestion } = useOnboarding();
+
+  useOnboardingStepNavigation({
+    onPrevious: () => {
+      navigate('/onboarding/sources');
+      return false;
+    },
+    onNext: () => {
+      navigate('/workspace');
+      return false;
+    }
+  });
 
   return (
     <PageShell

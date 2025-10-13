@@ -11,55 +11,71 @@ import {
   Text,
   Textarea
 } from '@chakra-ui/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../shared/PageShell';
-import { useOnboarding } from './OnboardingContext';
+import { useOnboarding, useOnboardingStepNavigation } from './OnboardingContext';
 
 const citationOptions = ['APA', 'MLA', 'CHICAGO', 'IEEE', 'HARVARD'] as const;
 
 export function ProjectDetailsStep() {
   const navigate = useNavigate();
-  const { project, projectError, projectLoading, savingProject, saveProject } = useOnboarding();
-  const [title, setTitle] = useState('');
-  const [topic, setTopic] = useState('');
-  const [researchQuestions, setResearchQuestions] = useState('');
-  const [thesisStatement, setThesisStatement] = useState('');
-  const [citationStyle, setCitationStyle] = useState<typeof citationOptions[number]>('APA');
+  const {
+    project,
+    projectError,
+    projectLoading,
+    savingProject,
+    saveProject,
+    projectDraft,
+    updateProjectDraft
+  } = useOnboarding();
   const [localError, setLocalError] = useState<string | null>(null);
 
   const isDisabled = projectLoading || savingProject;
 
-  useEffect(() => {
-    if (project) {
-      setTitle(project.title ?? '');
-      setTopic(project.topic ?? '');
-      setResearchQuestions(project.researchQuestions?.join('\n') ?? '');
-      setThesisStatement(project.thesisStatement ?? '');
-      setCitationStyle(project.citationStyle ?? 'APA');
+  const ensureValid = useCallback(() => {
+    if (!projectDraft.title.trim() || !projectDraft.topic.trim()) {
+      setLocalError('Project title and topic are required.');
+      return false;
     }
-  }, [project]);
+    setLocalError(null);
+    return true;
+  }, [projectDraft]);
+
+  const persistProject = useCallback(async () => {
+    if (!ensureValid()) {
+      return false;
+    }
+    try {
+      await saveProject(projectDraft);
+      return true;
+    } catch (error) {
+      setLocalError((error as Error).message);
+      return false;
+    }
+  }, [ensureValid, projectDraft, saveProject]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!title.trim() || !topic.trim()) {
-      setLocalError('Project title and topic are required.');
-      return;
-    }
-    setLocalError(null);
-    try {
-      await saveProject({
-        title,
-        topic,
-        researchQuestions,
-        thesisStatement,
-        citationStyle
-      });
+    const ok = await persistProject();
+    if (ok) {
       navigate('/onboarding/sources');
-    } catch (error) {
-      setLocalError((error as Error).message);
     }
   };
+
+  useOnboardingStepNavigation({
+    onPrevious: () => {
+      navigate('/onboarding');
+      return false;
+    },
+    onNext: async () => {
+      const ok = await persistProject();
+      if (ok) {
+        navigate('/onboarding/sources');
+      }
+      return false;
+    }
+  });
 
   const helperText = useMemo(() => {
     if (project) {
@@ -98,8 +114,8 @@ export function ProjectDetailsStep() {
             <Input
               placeholder="e.g., AI-Augmented Literature Review"
               bg="rgba(15,23,42,0.7)"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              value={projectDraft.title}
+              onChange={(event) => updateProjectDraft({ title: event.target.value })}
             />
           </FormControl>
           <FormControl isRequired>
@@ -108,8 +124,8 @@ export function ProjectDetailsStep() {
               rows={5}
               placeholder="Summarize your thesis focus and objectives."
               bg="rgba(15,23,42,0.7)"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
+              value={projectDraft.topic}
+              onChange={(event) => updateProjectDraft({ topic: event.target.value })}
             />
           </FormControl>
           <FormControl>
@@ -118,8 +134,8 @@ export function ProjectDetailsStep() {
               rows={3}
               placeholder="Share your working thesis statement."
               bg="rgba(15,23,42,0.7)"
-              value={thesisStatement}
-              onChange={(event) => setThesisStatement(event.target.value)}
+              value={projectDraft.thesisStatement ?? ''}
+              onChange={(event) => updateProjectDraft({ thesisStatement: event.target.value })}
             />
           </FormControl>
           <FormControl>
@@ -128,8 +144,8 @@ export function ProjectDetailsStep() {
               rows={4}
               placeholder="List the core research questions guiding your thesis."
               bg="rgba(15,23,42,0.7)"
-              value={researchQuestions}
-              onChange={(event) => setResearchQuestions(event.target.value)}
+              value={projectDraft.researchQuestions}
+              onChange={(event) => updateProjectDraft({ researchQuestions: event.target.value })}
             />
             <Text fontSize="sm" color="blue.200" mt={2}>
               Tip: focus on 2–4 questions to start. You can expand later.
@@ -138,8 +154,12 @@ export function ProjectDetailsStep() {
           <FormControl>
             <FormLabel color="blue.100">Preferred citation style</FormLabel>
             <Select
-              value={citationStyle}
-              onChange={(event) => setCitationStyle(event.target.value as typeof citationOptions[number])}
+              value={projectDraft.citationStyle}
+              onChange={(event) =>
+                updateProjectDraft({
+                  citationStyle: event.target.value as (typeof citationOptions)[number]
+                })
+              }
               bg="rgba(15,23,42,0.7)"
             >
               {citationOptions.map((style) => (

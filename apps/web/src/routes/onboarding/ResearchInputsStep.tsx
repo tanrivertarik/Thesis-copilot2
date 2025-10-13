@@ -10,32 +10,68 @@ import {
   Text,
   Textarea
 } from '@chakra-ui/react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../shared/PageShell';
-import { useOnboarding } from './OnboardingContext';
+import { useOnboarding, useOnboardingStepNavigation } from './OnboardingContext';
 
 export function ResearchInputsStep() {
   const navigate = useNavigate();
-  const { ingestFromText, ingesting, ingestError, ingestionResult, project } = useOnboarding();
-  const [title, setTitle] = useState('Initial research note');
-  const [text, setText] = useState('');
+  const {
+    ingestFromText,
+    ingesting,
+    ingestError,
+    ingestionResult,
+    project,
+    researchDraft,
+    updateResearchDraft
+  } = useOnboarding();
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!text.trim()) {
+  const attemptIngestion = useCallback(async () => {
+    if (!project) {
+      setLocalError('Save your project details before adding sources.');
+      return false;
+    }
+    if (!researchDraft.text.trim()) {
       setLocalError('Add some text or notes before continuing.');
-      return;
+      return false;
     }
     setLocalError(null);
     try {
-      await ingestFromText({ title, text });
-      navigate('/onboarding/summary');
+      await ingestFromText({ title: researchDraft.title, text: researchDraft.text });
+      return true;
     } catch (error) {
       setLocalError((error as Error).message);
+      return false;
+    }
+  }, [ingestFromText, project, researchDraft]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const ok = await attemptIngestion();
+    if (ok) {
+      navigate('/onboarding/summary');
     }
   };
+
+  useOnboardingStepNavigation({
+    onPrevious: () => {
+      navigate('/onboarding/start');
+      return false;
+    },
+    onNext: async () => {
+      if (researchDraft.text.trim()) {
+        const ok = await attemptIngestion();
+        if (ok) {
+          navigate('/onboarding/summary');
+        }
+      } else {
+        navigate('/onboarding/summary');
+      }
+      return false;
+    }
+  });
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -77,8 +113,8 @@ export function ResearchInputsStep() {
             <Input
               placeholder="e.g., Key findings from preliminary reading"
               bg="rgba(15,23,42,0.7)"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              value={researchDraft.title}
+              onChange={(event) => updateResearchDraft({ title: event.target.value })}
             />
           </FormControl>
           <FormControl>
@@ -87,8 +123,8 @@ export function ResearchInputsStep() {
               rows={6}
               placeholder="Paste a paragraph, outline bullet points, or summarize your first source."
               bg="rgba(15,23,42,0.7)"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
+              value={researchDraft.text}
+              onChange={(event) => updateResearchDraft({ text: event.target.value })}
             />
             <Text fontSize="sm" color="blue.200" mt={2}>
               We&apos;ll store this as a text source and run ingestion to produce summaries and
