@@ -122,8 +122,12 @@ export async function deleteProject(ownerId: string, projectId: string): Promise
   return true;
 }
 
-// Seed a sample project for demo purposes (development only)
-void (async () => {
+// Sample seeding function for development (call manually if needed)
+export async function seedSampleProject() {
+  if (process.env.NODE_ENV !== 'development') {
+    return;
+  }
+  
   try {
     const ownerId = 'demo-user';
     const existing = await listProjects(ownerId);
@@ -160,8 +164,10 @@ void (async () => {
           }
         }
       });
+
+      console.log('[seed] Created sample project for development');
     }
   } catch (error) {
     console.error('[seed] failed to create sample project', error);
   }
-})();
+}

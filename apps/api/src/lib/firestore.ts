@@ -13,6 +13,14 @@ function initializeApp(): admin.app.App {
     return existing;
   }
 
+  // If using emulator, initialize without credentials
+  if (process.env.FIRESTORE_EMULATOR_HOST) {
+    const app = admin.initializeApp({
+      projectId: 'thesis-copilot-test'
+    });
+    return app;
+  }
+
   if (!env.firebaseAdmin) {
     throw new Error(
       'Firebase Admin credentials are not configured. Populate FIREBASE_ADMIN_* variables.'

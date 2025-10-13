@@ -9,11 +9,19 @@ export function Login() {
   const location = useLocation();
 
   useEffect(() => {
-    if (user) {
+    console.log('🔀 Login component effect:', {
+      hasUser: !!user,
+      userEmail: user?.email,
+      loading,
+      currentPath: location.pathname
+    });
+    
+    if (user && !loading) {
       const redirectTo = (location.state as { from?: Location })?.from?.pathname ?? '/workspace';
+      console.log('🎯 Navigating authenticated user to:', redirectTo);
       navigate(redirectTo, { replace: true });
     }
-  }, [user, navigate, location.state]);
+  }, [user, loading, navigate, location.state]);
 
   return (
     <Center minH="100vh" bgGradient="radial(surface, #020617)">
@@ -31,7 +39,10 @@ export function Login() {
             Sign in to Thesis Copilot
           </Heading>
           <Text color="blue.50">
-            Connect with Google to access your projects, sources, and drafting workspace.
+            {import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' 
+              ? 'Development mode: Sign in as demo user to access your projects, sources, and drafting workspace.'
+              : 'Connect with Google to access your projects, sources, and drafting workspace.'
+            }
           </Text>
           <Button
             onClick={signInWithGoogle}
@@ -39,7 +50,10 @@ export function Login() {
             size="lg"
             isLoading={loading}
           >
-            Continue with Google
+            {import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' 
+              ? 'Sign in as Demo User' 
+              : 'Continue with Google'
+            }
           </Button>
         </Stack>
       </Box>

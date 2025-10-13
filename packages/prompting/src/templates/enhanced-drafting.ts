@@ -104,13 +104,11 @@ ${formatChunkContext(contrastingSources, 'Contrasting')}
 ${constitutionGuidance}
 
 **SECTION REQUIREMENTS:**
-${request.requirements || `
 1. Create ${section.expectedLength ? Math.max(2, Math.round(section.expectedLength / 300)) : '2-4'} well-structured paragraphs
 2. Each paragraph should advance a specific sub-argument supporting the section objective
 3. Integrate evidence from multiple sources where possible
 4. Use clear topic sentences and logical transitions
 5. Maintain academic tone consistent with thesis constitution
-`}
 
 ${evidenceContext}
 
