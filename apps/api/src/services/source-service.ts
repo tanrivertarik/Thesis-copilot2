@@ -14,6 +14,16 @@ import {
 import { createEmbeddings, generateChatCompletion } from '../ai/openrouter.js';
 import { getFirestore } from '../lib/firestore.js';
 import { chunkText } from './text-utils.js';
+import {
+  ErrorCode,
+  ErrorFactory,
+  ThesisError,
+  DatabaseError,
+  ValidationError,
+  SourceProcessingError,
+  withRetry
+} from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 
 const SOURCES_COLLECTION = 'sources';
 const SOURCE_UPLOADS_COLLECTION = 'sourceUploads';
@@ -28,69 +38,136 @@ function docToSource(
   const data = snapshot.data();
   const parsed = SourceSchema.safeParse({ id: snapshot.id, ...data });
   if (!parsed.success) {
-    console.error('[source-service] Failed to parse source document', parsed.error.format());
+    const error = new ValidationError(
+      ErrorCode.VALIDATION_ERROR,
+      'Failed to parse source document from database',
+      { 
+        sourceId: snapshot.id,
+        additionalData: { validationErrors: parsed.error.format() }
+      }
+    );
+    logger.error('Failed to parse source document', error);
     return null;
   }
   return parsed.data;
 }
 
 async function deleteExistingChunks(sourceId: string) {
-  const db = getFirestore();
-  const snapshot = await db
-    .collection(SOURCE_CHUNKS_COLLECTION)
-    .where('sourceId', '==', sourceId)
-    .get();
+  const startTime = performance.now();
+  try {
+    const db = getFirestore();
+    const snapshot = await db
+      .collection(SOURCE_CHUNKS_COLLECTION)
+      .where('sourceId', '==', sourceId)
+      .get();
 
-  if (snapshot.empty) {
-    return;
+    if (snapshot.empty) {
+      logger.info('No existing chunks to delete', { sourceId });
+      return;
+    }
+
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+
+    const duration = performance.now() - startTime;
+    logger.logMetrics('delete_existing_chunks', duration, { sourceId }, {
+      deletedCount: snapshot.docs.length
+    });
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    const thesisError = new DatabaseError(
+      ErrorCode.DATABASE_ERROR,
+      'Failed to delete existing source chunks',
+      { sourceId }
+    );
+    logger.error('Failed to delete existing chunks', thesisError, {
+      additionalData: { duration, originalError: error }
+    });
+    throw thesisError;
   }
-
-  const batch = db.batch();
-  snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-  await batch.commit();
 }
 
 export async function listSources(ownerId: string, projectId: string): Promise<Source[]> {
-  const db = getFirestore();
-  const snapshot = await db
-    .collection(SOURCES_COLLECTION)
-    .where('ownerId', '==', ownerId)
-    .where('projectId', '==', projectId)
-    .orderBy('createdAt', 'desc')
-    .get();
+  const startTime = performance.now();
+  try {
+    const db = getFirestore();
+    const snapshot = await db
+      .collection(SOURCES_COLLECTION)
+      .where('ownerId', '==', ownerId)
+      .where('projectId', '==', projectId)
+      .orderBy('createdAt', 'desc')
+      .get();
 
-  return snapshot.docs
-    .map(docToSource)
-    .filter((source): source is Source => Boolean(source));
+    const sources = snapshot.docs
+      .map(docToSource)
+      .filter((source): source is Source => Boolean(source));
+
+    const duration = performance.now() - startTime;
+    logger.logMetrics('list_sources', duration, { userId: ownerId, projectId }, {
+      sourceCount: sources.length
+    });
+
+    return sources;
+  } catch (error) {
+    const thesisError = ErrorFactory.fromUnknown(error, ErrorCode.DATABASE_ERROR, {
+      userId: ownerId,
+      projectId,
+      additionalData: { operation: 'list_sources' }
+    });
+    logger.error('Failed to list sources', thesisError);
+    throw thesisError;
+  }
 }
 
 export async function createSource(
   ownerId: string,
   input: SourceCreateInput
 ): Promise<Source> {
-  const db = getFirestore();
-  const now = new Date().toISOString();
-  const id = randomUUID();
+  const startTime = performance.now();
+  try {
+    const db = getFirestore();
+    const now = new Date().toISOString();
+    const id = randomUUID();
 
-  const source: Source = {
-    id,
-    ownerId,
-    projectId: input.projectId,
-    kind: input.kind,
-    status: input.upload ? 'PROCESSING' : 'UPLOADED',
-    metadata: input.metadata,
-    summary: undefined,
-    createdAt: now,
-    updatedAt: now
-  };
+    const source: Source = {
+      id,
+      ownerId,
+      projectId: input.projectId,
+      kind: input.kind,
+      status: input.upload ? 'PROCESSING' : 'UPLOADED',
+      metadata: input.metadata,
+      summary: undefined,
+      createdAt: now,
+      updatedAt: now
+    };
 
-  await db.collection(SOURCES_COLLECTION).doc(id).set(source);
+    await db.collection(SOURCES_COLLECTION).doc(id).set(source);
 
-  if (input.upload) {
-    await uploadSourceContent(ownerId, id, input.upload);
+    if (input.upload) {
+      await uploadSourceContent(ownerId, id, input.upload);
+    }
+
+    const duration = performance.now() - startTime;
+    logger.logMetrics('create_source', duration, { 
+      userId: ownerId, 
+      projectId: input.projectId,
+      sourceId: id 
+    }, {
+      hasUpload: !!input.upload,
+      sourceKind: input.kind
+    });
+
+    return source;
+  } catch (error) {
+    const thesisError = ErrorFactory.fromUnknown(error, ErrorCode.DATABASE_ERROR, {
+      userId: ownerId,
+      projectId: input.projectId,
+      additionalData: { operation: 'create_source', sourceKind: input.kind }
+    });
+    logger.error('Failed to create source', thesisError);
+    throw thesisError;
   }
-
-  return source;
 }
 
 export async function uploadSourceContent(
@@ -98,24 +175,51 @@ export async function uploadSourceContent(
   sourceId: string,
   payload: SourceUploadInput
 ): Promise<boolean> {
-  const db = getFirestore();
-  const sourceDoc = await db.collection(SOURCES_COLLECTION).doc(sourceId).get();
-  const source = docToSource(sourceDoc);
-  if (!source || source.ownerId !== ownerId) {
-    return false;
+  const startTime = performance.now();
+  try {
+    const db = getFirestore();
+    const sourceDoc = await db.collection(SOURCES_COLLECTION).doc(sourceId).get();
+    const source = docToSource(sourceDoc);
+    
+    if (!source || source.ownerId !== ownerId) {
+      throw new ValidationError(
+        ErrorCode.INVALID_INPUT,
+        'Source not found or access denied',
+        { userId: ownerId, sourceId }
+      );
+    }
+
+    await db
+      .collection(SOURCE_UPLOADS_COLLECTION)
+      .doc(sourceId)
+      .set({ ownerId, projectId: source.projectId, ...payload, createdAt: new Date().toISOString() });
+
+    await db
+      .collection(SOURCES_COLLECTION)
+      .doc(sourceId)
+      .set({ status: 'PROCESSING', updatedAt: new Date().toISOString() }, { merge: true });
+
+    const duration = performance.now() - startTime;
+    logger.logMetrics('upload_source_content', duration, { 
+      userId: ownerId, 
+      sourceId,
+      projectId: source.projectId 
+    });
+
+    return true;
+  } catch (error) {
+    if (error instanceof ThesisError) {
+      throw error;
+    }
+    
+    const thesisError = ErrorFactory.fromUnknown(error, ErrorCode.STORAGE_ERROR, {
+      userId: ownerId,
+      sourceId,
+      additionalData: { operation: 'upload_source_content' }
+    });
+    logger.error('Failed to upload source content', thesisError);
+    throw thesisError;
   }
-
-  await db
-    .collection(SOURCE_UPLOADS_COLLECTION)
-    .doc(sourceId)
-    .set({ ownerId, projectId: source.projectId, ...payload, createdAt: new Date().toISOString() });
-
-  await db
-    .collection(SOURCES_COLLECTION)
-    .doc(sourceId)
-    .set({ status: 'PROCESSING', updatedAt: new Date().toISOString() }, { merge: true });
-
-  return true;
 }
 
 export async function ingestSource(

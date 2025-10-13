@@ -6,27 +6,64 @@ import type {
 } from '@thesis-copilot/shared';
 import { generateChatCompletion } from '../ai/openrouter.js';
 import { getProject } from './project-service.js';
+import {
+  ErrorCode,
+  ErrorFactory,
+  ThesisError,
+  ValidationError,
+  AIServiceError,
+  DraftingError,
+  withRetry
+} from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 
 export async function generateSectionDraft(
-  _ownerId: string,
+  ownerId: string,
   request: SectionDraftRequest
 ): Promise<SectionDraftResponse> {
-  // TODO: enforce owner permissions when persistence layer exists
-  const systemPrompt = `
+  const startTime = performance.now();
+  
+  try {
+    // Validate input
+    if (!request.projectId || !request.sectionId) {
+      throw new ValidationError(
+        ErrorCode.MISSING_REQUIRED_FIELD,
+        'Project ID and Section ID are required',
+        { userId: ownerId, projectId: request.projectId, sectionId: request.sectionId }
+      );
+    }
+
+    if (!request.section?.title || !request.section?.objective) {
+      throw new ValidationError(
+        ErrorCode.INVALID_INPUT,
+        'Section title and objective are required',
+        { userId: ownerId, projectId: request.projectId, sectionId: request.sectionId }
+      );
+    }
+
+    if (!request.chunks || request.chunks.length === 0) {
+      throw new ValidationError(
+        ErrorCode.INVALID_INPUT,
+        'At least one source chunk is required for drafting',
+        { userId: ownerId, projectId: request.projectId, sectionId: request.sectionId }
+      );
+    }
+
+    const systemPrompt = `
 You are Thesis Copilot, an academic writing assistant.
 Produce factual, citation-aligned prose using ONLY the provided source excerpts.
 When referencing a source chunk, insert [CITE:{chunkId}] where {chunkId} is the provided id.
 Maintain a formal academic tone and avoid hallucinations.
 `;
 
-  const chunkContext = request.chunks
-    .map(
-      (chunk, index) =>
-        `Chunk ${index + 1} (id: ${chunk.id}, sourceId: ${chunk.sourceId}):\n${chunk.text}`
-    )
-    .join('\n\n');
+    const chunkContext = request.chunks
+      .map(
+        (chunk, index) =>
+          `Chunk ${index + 1} (id: ${chunk.id}, sourceId: ${chunk.sourceId}):\n${chunk.text}`
+      )
+      .join('\n\n');
 
-  const userPrompt = `
+    const userPrompt = `
 Project ID: ${request.projectId}
 Section ID: ${request.sectionId}
 Section Goal: ${request.section.objective}
@@ -48,21 +85,66 @@ Instructions:
 - Mention uncertainties or gaps explicitly.
 `;
 
-  const response = await generateChatCompletion({
-    systemPrompt,
-    userPrompt,
-    maxTokens: request.maxTokens,
-    temperature: 0.35
-  });
+    // Generate draft with retry logic
+    const response = await withRetry(
+      () => generateChatCompletion({
+        systemPrompt,
+        userPrompt,
+        maxTokens: request.maxTokens,
+        temperature: 0.35
+      }),
+      {
+        maxRetries: 3,
+        retryableErrors: [ErrorCode.AI_SERVICE_ERROR, ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE]
+      }
+    );
 
-  const usedChunkIds = request.chunks.map((chunk) => chunk.id);
+    if (!response.output || response.output.trim().length === 0) {
+      throw new DraftingError(
+        ErrorCode.DRAFTING_FAILED,
+        'AI service returned empty draft content',
+        { userId: ownerId, projectId: request.projectId, sectionId: request.sectionId }
+      );
+    }
 
-  return {
-    draft: response.output,
-    usedChunkIds,
-    tokenUsage: response.usage,
-    latencyMs: response.latencyMs
-  };
+    const usedChunkIds = request.chunks.map((chunk) => chunk.id);
+    const duration = performance.now() - startTime;
+
+    logger.logMetrics('generate_section_draft', duration, {
+      userId: ownerId,
+      projectId: request.projectId,
+      sectionId: request.sectionId
+    }, {
+      chunkCount: request.chunks.length,
+      outputLength: response.output.length,
+      tokenUsage: response.usage,
+      temperature: 0.35
+    });
+
+    return {
+      draft: response.output,
+      usedChunkIds,
+      tokenUsage: response.usage,
+      latencyMs: response.latencyMs
+    };
+  } catch (error) {
+    if (error instanceof ThesisError) {
+      throw error;
+    }
+    
+    const thesisError = ErrorFactory.fromUnknown(error, ErrorCode.DRAFTING_FAILED, {
+      userId: ownerId,
+      projectId: request.projectId,
+      sectionId: request.sectionId,
+      additionalData: { 
+        operation: 'generate_section_draft',
+        chunkCount: request.chunks?.length ?? 0
+      }
+    });
+    
+    logger.error('Section draft generation failed', thesisError);
+    throw thesisError;
+  }
 }
 
 function normalizeSuggestionHtml(html: string) {

@@ -10,6 +10,7 @@ import {
   uploadSourceContent,
   uploadSourceFile
 } from '../services/source-service.js';
+import { ValidationError, ErrorCode } from '../utils/errors.js';
 
 export const sourcesRouter = Router();
 
@@ -26,7 +27,14 @@ sourcesRouter.post(
   asyncHandler(async (req: AuthedRequest, res: Response) => {
     const parsed = SourceCreateSchema.safeParse(req.body);
     if (!parsed.success) {
-      throw new HttpError(400, parsed.error.message);
+      throw new ValidationError(
+        ErrorCode.VALIDATION_ERROR,
+        'Invalid request data for source creation',
+        { 
+          userId: req.user.id,
+          additionalData: { validationErrors: parsed.error.format() }
+        }
+      );
     }
     const source = await createSource(req.user.id, parsed.data);
     res.status(201).json({ data: source });
@@ -38,7 +46,14 @@ sourcesRouter.post(
   asyncHandler(async (req: AuthedRequest, res: Response) => {
     const result = await ingestSource(req.user.id, req.params.sourceId);
     if (!result) {
-      throw new HttpError(404, 'Source not found');
+      throw new ValidationError(
+        ErrorCode.INVALID_INPUT,
+        'Source not found or access denied',
+        { 
+          userId: req.user.id,
+          sourceId: req.params.sourceId
+        }
+      );
     }
     res.json({ data: result });
   })
@@ -49,12 +64,27 @@ sourcesRouter.post(
   asyncHandler(async (req: AuthedRequest, res: Response) => {
     const parsed = SourceUploadSchema.safeParse(req.body);
     if (!parsed.success) {
-      throw new HttpError(400, parsed.error.message);
+      throw new ValidationError(
+        ErrorCode.VALIDATION_ERROR,
+        'Invalid upload data format',
+        { 
+          userId: req.user.id,
+          sourceId: req.params.sourceId,
+          additionalData: { validationErrors: parsed.error.format() }
+        }
+      );
     }
 
-    const ok = await uploadSourceContent(req.user.id, req.params.sourceId, parsed.data);
-    if (!ok) {
-      throw new HttpError(404, 'Source not found');
+    const success = await uploadSourceContent(req.user.id, req.params.sourceId, parsed.data);
+    if (!success) {
+      throw new ValidationError(
+        ErrorCode.INVALID_INPUT,
+        'Source not found or upload failed',
+        { 
+          userId: req.user.id,
+          sourceId: req.params.sourceId
+        }
+      );
     }
 
     res.status(204).send();

@@ -1,5 +1,13 @@
 import { performance } from 'node:perf_hooks';
 import { env } from '../config/env.js';
+import { 
+  AIServiceError, 
+  ErrorCode, 
+  ErrorFactory, 
+  withRetry,
+  type ErrorContext 
+} from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 
 type EmbeddingResponse = {
   embeddings: number[][];
@@ -53,51 +61,129 @@ function randomEmbedding(dim = 256, seed = Math.random() * 1000) {
 }
 
 export async function createEmbeddings(
-  inputs: string[],
-  model = 'openai/text-embedding-3-small'
+  texts: string[],
+  context: ErrorContext = {}
 ): Promise<EmbeddingResponse> {
-  const start = performance.now();
+  const operation = async (): Promise<EmbeddingResponse> => {
+    const start = performance.now();
 
-  if (!hasOpenRouterKey()) {
-    const embeddings = inputs.map((input, index) => randomEmbedding(256, index + input.length));
-    return {
-      embeddings,
-      latencyMs: performance.now() - start,
-      cached: true
-    };
-  }
+    if (!hasOpenRouterKey()) {
+      logger.warn('OpenRouter API key missing, returning mock embeddings', context);
+      return {
+        embeddings: texts.map(() => Array(768).fill(0.5)),
+        latencyMs: performance.now() - start,
+        cached: false
+      };
+    }
 
-  const response = await fetch(`${OPENROUTER_BASE_URL}/embeddings`, {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify({
-      model,
-      input: inputs
-    })
-  });
+    logger.debug(`Creating embeddings for ${texts.length} texts`, context, {
+      textLengths: texts.map(t => t.length),
+      totalCharacters: texts.reduce((sum, t) => sum + t.length, 0)
+    });
 
-  const latencyMs = performance.now() - start;
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenRouter embeddings failed: ${response.status} - ${errorText}`);
-  }
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.openRouterApiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://thesis-copilot.com',
+          'X-Title': 'Thesis Copilot'
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: texts
+        })
+      });
 
-  const json = (await response.json()) as {
-    data: Array<{ embedding: number[] }>;
-    usage?: { prompt_tokens?: number; total_tokens?: number };
+      const latencyMs = performance.now() - start;
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(`OpenRouter embeddings API failed: ${response.status}`, undefined, {
+          ...context,
+          statusCode: response.status,
+          errorText: errorText.substring(0, 500)
+        });
+
+        // Handle specific error codes
+        if (response.status === 429) {
+          throw new AIServiceError(
+            ErrorCode.AI_QUOTA_EXCEEDED,
+            `Embedding generation rate limit exceeded: ${errorText}`,
+            { ...context, statusCode: response.status }
+          );
+        } else if (response.status === 401) {
+          throw new AIServiceError(
+            ErrorCode.AI_SERVICE_ERROR,
+            `OpenRouter authentication failed: ${errorText}`,
+            { ...context, statusCode: response.status }
+          );
+        } else if (response.status >= 500) {
+          throw new AIServiceError(
+            ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE,
+            `OpenRouter service unavailable: ${response.status} - ${errorText}`,
+            { ...context, statusCode: response.status }
+          );
+        } else {
+          throw new AIServiceError(
+            ErrorCode.EMBEDDING_GENERATION_FAILED,
+            `Embedding generation failed: ${response.status} - ${errorText}`,
+            { ...context, statusCode: response.status }
+          );
+        }
+      }
+
+      const json = (await response.json()) as {
+        data: Array<{ embedding: number[] }>;
+        usage?: { prompt_tokens?: number; total_tokens?: number };
+      };
+
+      const result = {
+        embeddings: json.data.map(item => item.embedding),
+        latencyMs,
+        usage: {
+          promptTokens: json.usage?.prompt_tokens,
+          totalTokens: json.usage?.total_tokens
+        },
+        cached: false
+      };
+
+      logger.info(`Successfully created ${result.embeddings.length} embeddings`, context, {
+        latencyMs: result.latencyMs,
+        usage: result.usage,
+        dimensionality: result.embeddings[0]?.length
+      });
+
+      return result;
+
+    } catch (error) {
+      if (error instanceof AIServiceError) {
+        throw error;
+      }
+
+      const latencyMs = performance.now() - start;
+      logger.error(`Embedding generation failed after ${latencyMs}ms`, error as Error, context);
+
+      throw ErrorFactory.createFromCode(
+        ErrorCode.EMBEDDING_GENERATION_FAILED,
+        `Failed to generate embeddings: ${error instanceof Error ? error.message : String(error)}`,
+        { ...context, latencyMs },
+        error instanceof Error ? error : undefined
+      );
+    }
   };
 
-  const embeddings = json.data.map((item) => item.embedding);
-
-  return {
-    embeddings,
-    latencyMs,
-    usage: {
-      promptTokens: json.usage?.prompt_tokens,
-      totalTokens: json.usage?.total_tokens
-    },
-    cached: false
-  };
+  return withRetry(operation, {
+    maxRetries: 3,
+    baseDelay: 1000,
+    backoffMultiplier: 2,
+    retryableErrors: [
+      ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE,
+      ErrorCode.AI_SERVICE_ERROR,
+      ErrorCode.CONNECTION_TIMEOUT
+    ]
+  }, context);
 }
 
 export async function generateChatCompletion({
@@ -112,53 +198,149 @@ export async function generateChatCompletion({
   userPrompt: string;
   maxTokens?: number;
   temperature?: number;
-}): Promise<ChatResponse> {
-  const start = performance.now();
+}, context: ErrorContext = {}): Promise<ChatResponse> {
+  const operation = async (): Promise<ChatResponse> => {
+    const start = performance.now();
 
-  if (!hasOpenRouterKey()) {
-    return {
-      output: `${userPrompt}\n\n[OpenRouter API key missing — returning prompt echo for local testing.]`,
-      latencyMs: performance.now() - start,
-      cached: true
-    };
-  }
+    if (!hasOpenRouterKey()) {
+      logger.warn('OpenRouter API key missing, returning mock response', context);
+      return {
+        output: `${userPrompt}\n\n[OpenRouter API key missing — returning prompt echo for local testing.]`,
+        latencyMs: performance.now() - start,
+        cached: false
+      };
+    }
 
-  const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify({
+    logger.debug(`Generating chat completion with model ${model}`, context, {
       model,
-      temperature,
-      max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ]
-    })
-  });
+      systemPromptLength: systemPrompt.length,
+      userPromptLength: userPrompt.length,
+      maxTokens,
+      temperature
+    });
 
-  const latencyMs = performance.now() - start;
+    try {
+      const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify({
+          model,
+          temperature,
+          max_tokens: maxTokens,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        })
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenRouter chat failed: ${response.status} - ${errorText}`);
-  }
+      const latencyMs = performance.now() - start;
 
-  const json = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(`OpenRouter chat completion API failed: ${response.status}`, undefined, {
+          ...context,
+          statusCode: response.status,
+          model,
+          errorText: errorText.substring(0, 500)
+        });
+
+        // Handle specific error codes
+        if (response.status === 429) {
+          throw new AIServiceError(
+            ErrorCode.AI_QUOTA_EXCEEDED,
+            `Chat completion rate limit exceeded: ${errorText}`,
+            { ...context, statusCode: response.status, model }
+          );
+        } else if (response.status === 401) {
+          throw new AIServiceError(
+            ErrorCode.AI_SERVICE_ERROR,
+            `OpenRouter authentication failed: ${errorText}`,
+            { ...context, statusCode: response.status, model }
+          );
+        } else if (response.status === 400) {
+          throw new AIServiceError(
+            ErrorCode.CONTENT_GENERATION_FAILED,
+            `Invalid request to OpenRouter: ${errorText}`,
+            { ...context, statusCode: response.status, model }
+          );
+        } else if (response.status >= 500) {
+          throw new AIServiceError(
+            ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE,
+            `OpenRouter service unavailable: ${response.status} - ${errorText}`,
+            { ...context, statusCode: response.status, model }
+          );
+        } else {
+          throw new AIServiceError(
+            ErrorCode.CONTENT_GENERATION_FAILED,
+            `Chat completion failed: ${response.status} - ${errorText}`,
+            { ...context, statusCode: response.status, model }
+          );
+        }
+      }
+
+      const json = (await response.json()) as {
+        choices: Array<{ message: { content: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      };
+
+      const content = json.choices.at(0)?.message?.content ?? '';
+
+      if (!content) {
+        logger.warn('Empty response from OpenRouter chat completion', context, { model, latencyMs });
+        throw new AIServiceError(
+          ErrorCode.CONTENT_GENERATION_FAILED,
+          'Received empty response from AI service',
+          { ...context, model, latencyMs }
+        );
+      }
+
+      const result = {
+        output: content,
+        latencyMs,
+        usage: {
+          promptTokens: json.usage?.prompt_tokens,
+          completionTokens: json.usage?.completion_tokens,
+          totalTokens: json.usage?.total_tokens
+        },
+        cached: false
+      };
+
+      logger.info(`Successfully generated chat completion`, context, {
+        model,
+        latencyMs: result.latencyMs,
+        outputLength: content.length,
+        usage: result.usage
+      });
+
+      return result;
+
+    } catch (error) {
+      if (error instanceof AIServiceError) {
+        throw error;
+      }
+
+      const latencyMs = performance.now() - start;
+      logger.error(`Chat completion failed after ${latencyMs}ms`, error as Error, { ...context, model });
+
+      throw ErrorFactory.createFromCode(
+        ErrorCode.CONTENT_GENERATION_FAILED,
+        `Failed to generate chat completion: ${error instanceof Error ? error.message : String(error)}`,
+        { ...context, model, latencyMs },
+        error instanceof Error ? error : undefined
+      );
+    }
   };
 
-  const content = json.choices.at(0)?.message?.content ?? '';
-
-  return {
-    output: content,
-    latencyMs,
-    usage: {
-      promptTokens: json.usage?.prompt_tokens,
-      completionTokens: json.usage?.completion_tokens,
-      totalTokens: json.usage?.total_tokens
-    },
-    cached: false
-  };
+  return withRetry(operation, {
+    maxRetries: 3,
+    baseDelay: 2000,
+    maxDelay: 15000,
+    backoffMultiplier: 2,
+    retryableErrors: [
+      ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE,
+      ErrorCode.AI_SERVICE_ERROR,
+      ErrorCode.CONNECTION_TIMEOUT
+    ]
+  }, context);
 }

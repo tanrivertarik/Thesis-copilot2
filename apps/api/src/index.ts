@@ -11,10 +11,17 @@ import morgan from 'morgan';
 import { env } from './config/env.js';
 import { registerRoutes } from './routes/index.js';
 import { authMiddleware } from './middleware/auth.js';
+import { 
+  errorHandlerMiddleware, 
+  requestContextMiddleware, 
+  setupGracefulShutdown 
+} from './middleware/error-handler.js';
 import { HttpError } from './utils/http.js';
+import { logger } from './utils/logger.js';
 
 const app = express();
 
+// Security and logging middleware
 app.use(helmet());
 app.use(
   cors({
@@ -23,6 +30,9 @@ app.use(
 );
 app.use(json({ limit: '1mb' }));
 app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
+
+// Request context and authentication
+app.use(requestContextMiddleware);
 app.use(authMiddleware as unknown as RequestHandler);
 
 app.get('/health', (_req: Request, res: Response) => {
@@ -34,18 +44,17 @@ app.get('/health', (_req: Request, res: Response) => {
 
 registerRoutes(app);
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
+// Comprehensive error handling middleware
+app.use(errorHandlerMiddleware);
 
-  if (err instanceof HttpError) {
-    res.status(err.status).json({ message: err.message });
-    return;
-  }
-
-  res.status(500).json({ message: 'Internal server error' });
+const server = app.listen(env.port, () => {
+  logger.info(`🚀 API running on http://localhost:${env.port}`, {
+    additionalData: { 
+      nodeEnv: env.nodeEnv,
+      port: env.port 
+    }
+  });
 });
 
-app.listen(env.port, () => {
-  console.log(`🚀 API running on http://localhost:${env.port}`);
-});
+// Setup graceful shutdown
+setupGracefulShutdown(server);
