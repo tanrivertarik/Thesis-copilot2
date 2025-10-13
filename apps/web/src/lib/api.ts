@@ -118,6 +118,35 @@ export async function ingestSource(sourceId: string): Promise<SourceIngestionRes
   });
 }
 
+async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
+  const token = await getIdToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: token ? `Bearer ${token}` : ''
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Upload failed: ${message}`);
+  }
+
+  return response.json();
+}
+
+export async function uploadSourceFile(sourceId: string, file: File): Promise<SourceIngestionResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  return uploadRequest<SourceIngestionResult>(`/api/sources/${sourceId}/upload-file`, formData);
+}
+
 export async function submitRetrieval(
   payload: RetrievalRequest
 ): Promise<RetrievalResult> {

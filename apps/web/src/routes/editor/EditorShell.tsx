@@ -12,7 +12,7 @@ import {
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import type { Editor } from '@tiptap/react';
-import { DOMSerializer, type Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { DOMSerializer, type Node as ProseMirrorNode } from 'prosemirror-model';
 import { PageShell } from '../shared/PageShell';
 import { TipTapEditor } from './components/TipTapEditor';
 import { CitationSidebar } from './components/CitationSidebar';

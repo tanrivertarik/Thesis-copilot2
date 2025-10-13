@@ -7,6 +7,7 @@ import { ProjectDetailsStep } from './onboarding/ProjectDetailsStep';
 import { ResearchInputsStep } from './onboarding/ResearchInputsStep';
 import { SummaryStep } from './onboarding/SummaryStep';
 import { WorkspaceHome } from './workspace/WorkspaceHome';
+import { SourceManagement } from './workspace/sources/SourceManagement';
 import { EditorShell } from './editor/EditorShell';
 import { Login } from './auth/Login';
 import { RequireAuth } from './shared/RequireAuth';
@@ -55,6 +56,14 @@ const router = createBrowserRouter([
         element: (
           <RequireAuth>
             <WorkspaceHome />
+          </RequireAuth>
+        )
+      },
+      {
+        path: 'workspace/sources',
+        element: (
+          <RequireAuth>
+            <SourceManagement />
           </RequireAuth>
         )
       },

@@ -1,7 +1,7 @@
 import { Extension } from '@tiptap/core';
-import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state';
+import { Decoration, DecorationSet } from 'prosemirror-view';
+import type { Node as ProseMirrorNode } from 'prosemirror-model';
 
 const CITATION_REGEX = /\[CITE:[^\]\s]+\]/g;
 

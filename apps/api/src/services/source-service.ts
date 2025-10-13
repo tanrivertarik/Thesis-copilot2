@@ -147,25 +147,97 @@ export async function ingestSource(
   const extractedText = await extractText(payload);
   const chunks = chunkText(extractedText.text, 800);
 
-  const { embeddings, latencyMs: embeddingLatency, usage: embeddingUsage, cached } =
-    await createEmbeddings(chunks.map((chunk) => chunk.text));
-  if (embeddingUsage) {
-    console.info(
-      '[ingestion] embedding usage',
-      JSON.stringify({ sourceId, ...embeddingUsage, cached }, null, 2)
-    );
+  // Generate embeddings with batch processing and retry logic
+  let embeddings: number[][];
+  let embeddingLatency = 0;
+  let embeddingUsage: any;
+  let cached = false;
+
+  try {
+    console.info(`[ingestion] Generating embeddings for ${chunks.length} chunks`);
+    
+    // Process embeddings in batches of 50 to avoid rate limits
+    const BATCH_SIZE = 50;
+    const allEmbeddings: number[][] = [];
+    let totalLatency = 0;
+    let totalUsage: any = {};
+
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      const batchChunks = chunks.slice(i, i + BATCH_SIZE);
+      const batchTexts = batchChunks.map(chunk => chunk.text);
+      
+      console.info(`[ingestion] Processing embedding batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(chunks.length/BATCH_SIZE)}`);
+      
+      const batchResult = await createEmbeddings(batchTexts);
+      allEmbeddings.push(...batchResult.embeddings);
+      totalLatency += batchResult.latencyMs;
+      cached = batchResult.cached;
+      
+      if (batchResult.usage) {
+        totalUsage.promptTokens = (totalUsage.promptTokens || 0) + (batchResult.usage.promptTokens || 0);
+        totalUsage.totalTokens = (totalUsage.totalTokens || 0) + (batchResult.usage.totalTokens || 0);
+      }
+      
+      // Small delay between batches to be respectful to the API
+      if (i + BATCH_SIZE < chunks.length && !cached) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    embeddings = allEmbeddings;
+    embeddingLatency = totalLatency;
+    embeddingUsage = totalUsage;
+
+    if (embeddingUsage) {
+      console.info(
+        '[ingestion] embedding usage',
+        JSON.stringify({ sourceId, ...embeddingUsage, cached, batches: Math.ceil(chunks.length/BATCH_SIZE) }, null, 2)
+      );
+    }
+  } catch (error) {
+    console.error(`[ingestion] Embedding generation failed for ${sourceId}:`, error);
+    throw new Error(`Failed to generate embeddings: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
+  if (embeddings.length !== chunks.length) {
+    throw new Error(`Embedding count mismatch: expected ${chunks.length}, got ${embeddings.length}`);
+  }
+
+  // Create a better summary using enhanced prompting
+  const summaryText = extractedText.text.slice(0, 8000); // Increased context
+  const wordCount = extractedText.wordCount;
+  
   const summaryResponse = await generateChatCompletion({
     model: 'openai/gpt-4o-mini',
-    systemPrompt:
-      'You are an academic assistant. Summarize the provided source text. Return JSON with "abstract" and "bulletPoints" (array).',
-    userPrompt: `Source Title: ${source.metadata.title}\n\nContent:\n${extractedText.text.slice(
-      0,
-      6000
-    )}\n\nReturn JSON only.`,
-    maxTokens: 400,
-    temperature: 0.2
+    systemPrompt: `You are an expert academic research assistant. Your task is to create high-quality summaries of academic sources that will help thesis writers understand and cite the content effectively.
+
+Guidelines:
+- Write a concise but comprehensive abstract (2-4 sentences)
+- Extract 4-6 key insights that would be useful for thesis research
+- Focus on methodology, findings, arguments, and implications
+- Use clear, academic language
+- Return ONLY valid JSON in the specified format`,
+    userPrompt: `Analyze this academic source and create a structured summary.
+
+Source Title: ${source.metadata.title || 'Untitled'}
+Author: ${source.metadata.author || 'Unknown'}
+Word Count: ~${wordCount} words
+
+Content:
+${summaryText}
+
+Return JSON with this exact structure:
+{
+  "abstract": "A concise 2-4 sentence summary of the main content and contributions",
+  "bulletPoints": [
+    "Key insight or finding #1",
+    "Key insight or finding #2", 
+    "Key insight or finding #3",
+    "Key insight or finding #4"
+  ]
+}`,
+    maxTokens: 500,
+    temperature: 0.1
   });
 
   if (summaryResponse.usage) {
@@ -186,12 +258,30 @@ export async function ingestSource(
 
   let summary = source.summary;
   try {
-    const parsed = SourceSummarySchema.parse(JSON.parse(summaryResponse.output));
+    // Clean the response to extract just the JSON
+    let responseText = summaryResponse.output.trim();
+    
+    // Remove any markdown code blocks
+    responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Try to find JSON in the response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      responseText = jsonMatch[0];
+    }
+    
+    const parsed = SourceSummarySchema.parse(JSON.parse(responseText));
     summary = parsed;
   } catch (error) {
+    console.warn(`[ingestion] Failed to parse summary for ${sourceId}:`, error);
+    // Fallback to a basic summary
     summary = {
-      abstract: summaryResponse.output,
-      bulletPoints: [`Failed to parse JSON summary: ${(error as Error).message}`]
+      abstract: summaryText.slice(0, 300) + '...',
+      bulletPoints: [
+        'Failed to generate structured summary',
+        `Source contains approximately ${wordCount} words`,
+        'Manual review recommended for key insights'
+      ]
     };
   }
 
@@ -209,36 +299,68 @@ export async function ingestSource(
     }
   }));
 
+  // Clean up existing chunks
+  console.info(`[ingestion] Cleaning up existing chunks for ${sourceId}`);
   await deleteExistingChunks(sourceId);
 
-  const batch = db.batch();
-  sourceChunks.forEach((chunk) => {
-    const ref = db.collection(SOURCE_CHUNKS_COLLECTION).doc(chunk.id);
-    batch.set(ref, chunk);
-  });
+  // Store chunks in batches (Firestore has 500 operation limit per batch)
+  console.info(`[ingestion] Storing ${sourceChunks.length} chunks for ${sourceId}`);
+  const FIRESTORE_BATCH_SIZE = 400; // Leave room for other operations
+  
+  try {
+    for (let i = 0; i < sourceChunks.length; i += FIRESTORE_BATCH_SIZE) {
+      const batchChunks = sourceChunks.slice(i, i + FIRESTORE_BATCH_SIZE);
+      const batch = db.batch();
+      
+      batchChunks.forEach((chunk) => {
+        const ref = db.collection(SOURCE_CHUNKS_COLLECTION).doc(chunk.id);
+        batch.set(ref, chunk);
+      });
+      
+      await batch.commit();
+      console.info(`[ingestion] Stored chunk batch ${Math.floor(i/FIRESTORE_BATCH_SIZE) + 1}/${Math.ceil(sourceChunks.length/FIRESTORE_BATCH_SIZE)}`);
+    }
 
-  batch.set(
-    sourceDocRef,
-    {
-      status: 'READY',
-      summary,
-      embeddingModel: cached ? 'mock-embedding' : 'openai/text-embedding-3-small',
-      updatedAt: new Date().toISOString()
-    },
-    { merge: true }
-  );
+    // Update source document and cleanup
+    const finalBatch = db.batch();
+    finalBatch.set(
+      sourceDocRef,
+      {
+        status: 'READY',
+        summary,
+        embeddingModel: cached ? 'mock-embedding' : 'openai/text-embedding-3-small',
+        chunkCount: sourceChunks.length,
+        totalTokens: sourceChunks.reduce((sum, chunk) => sum + chunk.tokenCount, 0),
+        updatedAt: new Date().toISOString(),
+        processedAt: new Date().toISOString()
+      },
+      { merge: true }
+    );
 
-  batch.delete(db.collection(SOURCE_UPLOADS_COLLECTION).doc(sourceId));
-  await batch.commit();
+    finalBatch.delete(db.collection(SOURCE_UPLOADS_COLLECTION).doc(sourceId));
+    await finalBatch.commit();
 
+    console.info(`[ingestion] Successfully processed source ${sourceId} with ${sourceChunks.length} chunks`);
+  } catch (error) {
+    console.error(`[ingestion] Failed to store chunks for ${sourceId}:`, error);
+    // Mark source as failed
+    await sourceDocRef.set({ 
+      status: 'FAILED', 
+      updatedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown storage error'
+    }, { merge: true });
+    throw error;
+  }
+
+  const processingTime = Date.now() - extractionStart;
+  
   return {
     sourceId,
     status: 'READY',
     summary,
     embeddingModel: cached ? 'mock-embedding' : 'openai/text-embedding-3-small',
     chunkCount: sourceChunks.length,
-    processingTimeMs:
-      Date.now() - extractionStart + embeddingLatency + summaryResponse.latencyMs
+    processingTimeMs: processingTime
   };
 }
 
@@ -266,6 +388,79 @@ export async function updateSourceStatus(sourceId: string, status: string): Prom
     .collection(SOURCES_COLLECTION)
     .doc(sourceId)
     .set({ status: parsed.data, updatedAt: new Date().toISOString() }, { merge: true });
+}
+
+export async function uploadSourceFile(
+  ownerId: string,
+  sourceId: string,
+  file: { filepath: string; mimetype?: string; originalFilename?: string }
+): Promise<SourceIngestionResult | null> {
+  const db = getFirestore();
+  const sourceDoc = await db.collection(SOURCES_COLLECTION).doc(sourceId).get();
+  const source = docToSource(sourceDoc);
+  if (!source || source.ownerId !== ownerId) {
+    return null;
+  }
+
+  try {
+    // Read file and process based on type
+    const fs = await import('fs/promises');
+    const fileBuffer = await fs.readFile(file.filepath);
+    
+    let extractedText: { text: string; wordCount: number };
+    let contentType: 'TEXT' | 'PDF';
+
+    if (file.mimetype === 'application/pdf') {
+      const pdfModule = (await import('pdf-parse')) as unknown as {
+        default?: (data: Buffer) => Promise<{ text: string }>
+      };
+      const pdfParseFn =
+        pdfModule.default ??
+        ((pdfModule as unknown) as (data: Buffer) => Promise<{ text: string }>);
+      const pdf = await pdfParseFn(fileBuffer);
+      extractedText = { text: pdf.text, wordCount: pdf.text.split(/\s+/).length };
+      contentType = 'PDF';
+    } else {
+      // Treat as text file
+      const text = fileBuffer.toString('utf-8');
+      extractedText = { text, wordCount: text.split(/\s+/).length };
+      contentType = 'TEXT';
+    }
+
+    // Store the upload payload
+    const uploadPayload: SourceUploadInput = {
+      contentType,
+      data: fileBuffer.toString('base64')
+    };
+
+    await db
+      .collection(SOURCE_UPLOADS_COLLECTION)
+      .doc(sourceId)
+      .set({ 
+        ownerId, 
+        projectId: source.projectId, 
+        ...uploadPayload, 
+        originalFilename: file.originalFilename,
+        createdAt: new Date().toISOString() 
+      });
+
+    // Update source status
+    await db
+      .collection(SOURCES_COLLECTION)
+      .doc(sourceId)
+      .set({ status: 'UPLOADED', updatedAt: new Date().toISOString() }, { merge: true });
+
+    // Automatically trigger ingestion
+    return await ingestSource(ownerId, sourceId);
+  } catch (error) {
+    // Update source status to indicate failure
+    await db
+      .collection(SOURCES_COLLECTION)
+      .doc(sourceId)
+      .set({ status: 'FAILED', updatedAt: new Date().toISOString() }, { merge: true });
+    
+    throw error;
+  }
 }
 
 async function extractText(payload: SourceUploadInput): Promise<{
