@@ -68,6 +68,14 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: 'workspace/drafting',
+        element: (
+          <RequireAuth>
+            <EditorShell />
+          </RequireAuth>
+        )
+      },
+      {
         path: 'editor',
         element: (
           <RequireAuth>

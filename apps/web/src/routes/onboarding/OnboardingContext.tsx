@@ -272,13 +272,22 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setResearchDraft(draft ?? defaultResearchDraft);
   }, []);
 
-  const registerNavigationHandlers = useCallback(
-    (handlers: OnboardingNavigationHandlers) => {
-      setNavigationHandlers(handlers);
-      return () => setNavigationHandlers({});
-    },
-    []
-  );
+  const registerNavigationHandlers = useCallback((handlers: OnboardingNavigationHandlers) => {
+    setNavigationHandlers((prev) => {
+      if (prev.onNext === handlers.onNext && prev.onPrevious === handlers.onPrevious) {
+        return prev;
+      }
+      return handlers;
+    });
+
+    return () =>
+      setNavigationHandlers((prev) => {
+        if (prev.onNext === handlers.onNext && prev.onPrevious === handlers.onPrevious) {
+          return {};
+        }
+        return prev;
+      });
+  }, []);
 
   const value = useMemo<OnboardingContextValue>(
     () => ({

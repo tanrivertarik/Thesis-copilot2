@@ -10,6 +10,7 @@ import {
 import { logger } from '../utils/logger.js';
 
 type EmbeddingResponse = {
+  model?: string;
   embeddings: number[][];
   latencyMs: number;
   usage?: {
@@ -31,11 +32,26 @@ type ChatResponse = {
 };
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+function pineconeBaseUrl() {
+  if (env.pineconeHost) {
+    return env.pineconeHost.replace(/\/$/, '');
+  }
+  return 'https://api.pinecone.io';
+}
+const OPENAI_EMBEDDINGS_URL = 'https://api.openai.com/v1/embeddings';
 const DEFAULT_REFERER = 'https://thesis-copilot.local';
 const DEFAULT_TITLE = 'Thesis Copilot';
 
 function hasOpenRouterKey() {
   return Boolean(env.openRouterApiKey);
+}
+
+function hasOpenAiKey() {
+  return Boolean(env.openAiApiKey);
+}
+
+function hasPineconeKey() {
+  return Boolean(env.pineconeApiKey);
 }
 
 function buildHeaders(): Record<string, string> {
@@ -67,31 +83,178 @@ export async function createEmbeddings(
   const operation = async (): Promise<EmbeddingResponse> => {
     const start = performance.now();
 
-    if (!hasOpenRouterKey()) {
-      logger.warn('OpenRouter API key missing, returning mock embeddings', context);
+    if (!hasOpenAiKey() && !hasPineconeKey() && !hasOpenRouterKey()) {
+      logger.warn('No embedding provider configured, returning mock embeddings', context);
       return {
+        model: 'mock-embedding',
         embeddings: texts.map(() => Array(768).fill(0.5)),
         latencyMs: performance.now() - start,
         cached: false
       };
     }
 
-    logger.debug(`Creating embeddings for ${texts.length} texts`, context, {
-      textLengths: texts.map(t => t.length),
-      totalCharacters: texts.reduce((sum, t) => sum + t.length, 0)
-    });
-
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+      if (hasOpenAiKey()) {
+        logger.debug(`Creating embeddings via OpenAI for ${texts.length} texts`, context, {
+          textLengths: texts.map((t) => t.length),
+          totalCharacters: texts.reduce((sum, t) => sum + t.length, 0)
+        });
+
+        const response = await fetch(OPENAI_EMBEDDINGS_URL, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${env.openAiApiKey as string}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: env.openAiEmbeddingModel ?? 'text-embedding-3-small',
+            input: texts
+          })
+        });
+
+        const latencyMs = performance.now() - start;
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          logger.error(`OpenAI embeddings API failed: ${response.status}`, undefined, {
+            ...context,
+            statusCode: response.status,
+            errorText: errorText.substring(0, 500)
+          });
+
+          const errorCode =
+            response.status === 429
+              ? ErrorCode.AI_QUOTA_EXCEEDED
+              : response.status === 401
+              ? ErrorCode.AI_SERVICE_ERROR
+              : response.status >= 500
+              ? ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE
+              : ErrorCode.EMBEDDING_GENERATION_FAILED;
+
+          throw new AIServiceError(
+            errorCode,
+            `OpenAI embedding request failed: ${response.status} - ${errorText}`,
+            { ...context, statusCode: response.status }
+          );
+        }
+
+        const json = (await response.json()) as {
+          data: Array<{ embedding: number[] }>;
+          model?: string;
+          usage?: { prompt_tokens?: number; total_tokens?: number };
+        };
+
+        const model = json.model ?? env.openAiEmbeddingModel ?? 'text-embedding-3-small';
+
+        const result = {
+          model,
+          embeddings: json.data.map((item) => item.embedding),
+          latencyMs,
+          usage: {
+            promptTokens: json.usage?.prompt_tokens,
+            totalTokens: json.usage?.total_tokens
+          },
+          cached: false
+        };
+
+        logger.info(`Successfully created ${result.embeddings.length} OpenAI embeddings`, context, {
+          latencyMs: result.latencyMs,
+          usage: result.usage,
+          dimensionality: result.embeddings[0]?.length,
+          model
+        });
+
+        return result;
+      }
+
+      if (hasPineconeKey()) {
+        logger.debug(`Creating embeddings via Pinecone for ${texts.length} texts`, context, {
+          textLengths: texts.map((t) => t.length),
+          totalCharacters: texts.reduce((sum, t) => sum + t.length, 0)
+        });
+
+        const response = await fetch(`${pineconeBaseUrl()}/inference/v1/embeddings`, {
+          method: 'POST',
+          headers: {
+            'Api-Key': env.pineconeApiKey as string,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: env.pineconeEmbeddingModel ?? 'text-embedding-3-large',
+            input: texts
+          })
+        });
+
+        const latencyMs = performance.now() - start;
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          logger.error(`Pinecone embeddings API failed: ${response.status}`, undefined, {
+            ...context,
+            statusCode: response.status,
+            errorText: errorText.substring(0, 500)
+          });
+
+          const errorCode =
+            response.status === 429
+              ? ErrorCode.AI_QUOTA_EXCEEDED
+              : response.status === 401
+              ? ErrorCode.AI_SERVICE_ERROR
+              : response.status >= 500
+              ? ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE
+              : ErrorCode.EMBEDDING_GENERATION_FAILED;
+
+          throw new AIServiceError(
+            errorCode,
+            `Pinecone embedding request failed: ${response.status} - ${errorText}`,
+            { ...context, statusCode: response.status }
+          );
+        }
+
+        const json = (await response.json()) as {
+          data: Array<{ embedding: number[] }>;
+          model?: string;
+          usage?: { input_tokens?: number; total_tokens?: number };
+        };
+
+        const model = json.model ?? env.pineconeEmbeddingModel ?? 'text-embedding-3-large';
+
+        const result = {
+          model,
+          embeddings: json.data.map((item) => item.embedding),
+          latencyMs,
+          usage: {
+            promptTokens: json.usage?.input_tokens,
+            totalTokens: json.usage?.total_tokens
+          },
+          cached: false
+        };
+
+        logger.info(`Successfully created ${result.embeddings.length} pinecone embeddings`, context, {
+          latencyMs: result.latencyMs,
+          usage: result.usage,
+          dimensionality: result.embeddings[0]?.length,
+          model
+        });
+
+        return result;
+      }
+
+      logger.debug(`Creating embeddings via OpenRouter for ${texts.length} texts`, context, {
+        textLengths: texts.map((t) => t.length),
+        totalCharacters: texts.reduce((sum, t) => sum + t.length, 0)
+      });
+
+      const response = await fetch(`${OPENROUTER_BASE_URL}/embeddings`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.openRouterApiKey}`,
+          Authorization: `Bearer ${env.openRouterApiKey as string}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://thesis-copilot.com',
           'X-Title': 'Thesis Copilot'
         },
         body: JSON.stringify({
-          model: 'text-embedding-3-small',
+          model: 'openai/text-embedding-3-small',
           input: texts
         })
       });
@@ -140,7 +303,8 @@ export async function createEmbeddings(
       };
 
       const result = {
-        embeddings: json.data.map(item => item.embedding),
+        model: 'openai/text-embedding-3-small',
+        embeddings: json.data.map((item) => item.embedding),
         latencyMs,
         usage: {
           promptTokens: json.usage?.prompt_tokens,
@@ -156,7 +320,6 @@ export async function createEmbeddings(
       });
 
       return result;
-
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;

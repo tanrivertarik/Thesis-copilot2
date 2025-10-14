@@ -1,4 +1,5 @@
 import { Badge, Button, Stack, Text, VStack } from '@chakra-ui/react';
+import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../shared/PageShell';
 import { useOnboarding, useOnboardingStepNavigation } from './OnboardingContext';
@@ -7,12 +8,14 @@ export function OnboardingOverview() {
   const navigate = useNavigate();
   const { project, ingestionResult } = useOnboarding();
 
-  useOnboardingStepNavigation({
-    onNext: () => {
-      navigate('/onboarding/start');
-      return false;
-    }
-  });
+  const handleNext = useCallback(() => {
+    navigate('/onboarding/start');
+    return false;
+  }, [navigate]);
+
+  const navigationHandlers = useMemo(() => ({ onNext: handleNext }), [handleNext]);
+
+  useOnboardingStepNavigation(navigationHandlers);
 
   return (
     <PageShell

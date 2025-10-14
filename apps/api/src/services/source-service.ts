@@ -137,7 +137,6 @@ export async function createSource(
       kind: input.kind,
       status: input.upload ? 'PROCESSING' : 'UPLOADED',
       metadata: input.metadata,
-      summary: undefined,
       createdAt: now,
       updatedAt: now
     };
@@ -247,8 +246,111 @@ export async function ingestSource(
     };
   }
 
-  const extractionStart = Date.now();
   const extractedText = await extractText(payload);
+
+  return processIngestionWithExtractedText({
+    db,
+    source,
+    sourceDocRef,
+    sourceId,
+    extractedText
+  });
+}
+
+export async function getChunksForProject(projectId: string): Promise<SourceChunk[]> {
+  const db = getFirestore();
+  const snapshot = await db
+    .collection(SOURCE_CHUNKS_COLLECTION)
+    .where('projectId', '==', projectId)
+    .orderBy('order')
+    .get();
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data() as SourceChunk;
+    return { ...data, id: doc.id };
+  });
+}
+
+export async function updateSourceStatus(sourceId: string, status: string): Promise<void> {
+  const db = getFirestore();
+  const parsed = SourceStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    throw new Error(`Invalid source status supplied: ${status}`);
+  }
+  await db
+    .collection(SOURCES_COLLECTION)
+    .doc(sourceId)
+    .set({ status: parsed.data, updatedAt: new Date().toISOString() }, { merge: true });
+}
+
+export async function uploadSourceFile(
+  ownerId: string,
+  sourceId: string,
+  file: { filepath: string; mimetype?: string; originalFilename?: string }
+): Promise<SourceIngestionResult | null> {
+  const db = getFirestore();
+  const sourceDoc = await db.collection(SOURCES_COLLECTION).doc(sourceId).get();
+  const source = docToSource(sourceDoc);
+  if (!source || source.ownerId !== ownerId) {
+    return null;
+  }
+
+  try {
+    // Read file and process based on type
+    const fs = await import('fs/promises');
+    const fileBuffer = await fs.readFile(file.filepath);
+    
+    let extractedText: { text: string; wordCount: number };
+
+    if (file.mimetype === 'application/pdf' || file.originalFilename?.toLowerCase().endsWith('.pdf')) {
+      const pdfParseFn = await loadPdfParser();
+      const pdf = await pdfParseFn(fileBuffer);
+      extractedText = { text: pdf.text, wordCount: pdf.text.split(/\s+/).length };
+    } else {
+      // Treat as text file
+      const text = fileBuffer.toString('utf-8');
+      extractedText = { text, wordCount: text.split(/\s+/).length };
+    }
+
+    await db
+      .collection(SOURCES_COLLECTION)
+      .doc(sourceId)
+      .set({ status: 'PROCESSING', updatedAt: new Date().toISOString() }, { merge: true });
+
+    const result = await processIngestionWithExtractedText({
+      db,
+      source,
+      sourceDocRef: sourceDoc.ref,
+      sourceId,
+      extractedText
+    });
+
+    return result;
+  } catch (error) {
+    // Update source status to indicate failure
+    await db
+      .collection(SOURCES_COLLECTION)
+      .doc(sourceId)
+      .set({ status: 'FAILED', updatedAt: new Date().toISOString() }, { merge: true });
+    
+    throw error;
+  }
+}
+
+async function processIngestionWithExtractedText({
+  db,
+  source,
+  sourceDocRef,
+  sourceId,
+  extractedText
+}: {
+  db: FirebaseFirestore.Firestore;
+  source: Source;
+  sourceDocRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>;
+  sourceId: string;
+  extractedText: { text: string; wordCount: number };
+}): Promise<SourceIngestionResult> {
+  const extractionStart = Date.now();
   const chunks = chunkText(extractedText.text, 800);
 
   // Generate embeddings with batch processing and retry logic
@@ -256,11 +358,11 @@ export async function ingestSource(
   let embeddingLatency = 0;
   let embeddingUsage: any;
   let cached = false;
+  let embeddingModelName: string | null = null;
 
   try {
     console.info(`[ingestion] Generating embeddings for ${chunks.length} chunks`);
-    
-    // Process embeddings in batches of 50 to avoid rate limits
+
     const BATCH_SIZE = 50;
     const allEmbeddings: number[][] = [];
     let totalLatency = 0;
@@ -268,23 +370,27 @@ export async function ingestSource(
 
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
       const batchChunks = chunks.slice(i, i + BATCH_SIZE);
-      const batchTexts = batchChunks.map(chunk => chunk.text);
-      
-      console.info(`[ingestion] Processing embedding batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(chunks.length/BATCH_SIZE)}`);
-      
+      const batchTexts = batchChunks.map((chunk) => chunk.text);
+
+      console.info(
+        `[ingestion] Processing embedding batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(chunks.length / BATCH_SIZE)}`
+      );
+
       const batchResult = await createEmbeddings(batchTexts);
+      if (!embeddingModelName) {
+        embeddingModelName = batchResult.model;
+      }
       allEmbeddings.push(...batchResult.embeddings);
       totalLatency += batchResult.latencyMs;
-      cached = batchResult.cached;
-      
+      cached = cached || batchResult.cached;
+
       if (batchResult.usage) {
         totalUsage.promptTokens = (totalUsage.promptTokens || 0) + (batchResult.usage.promptTokens || 0);
         totalUsage.totalTokens = (totalUsage.totalTokens || 0) + (batchResult.usage.totalTokens || 0);
       }
-      
-      // Small delay between batches to be respectful to the API
+
       if (i + BATCH_SIZE < chunks.length && !cached) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
@@ -295,7 +401,17 @@ export async function ingestSource(
     if (embeddingUsage) {
       console.info(
         '[ingestion] embedding usage',
-        JSON.stringify({ sourceId, ...embeddingUsage, cached, batches: Math.ceil(chunks.length/BATCH_SIZE) }, null, 2)
+        JSON.stringify(
+          {
+            sourceId,
+            ...embeddingUsage,
+            cached,
+            batches: Math.ceil(chunks.length / BATCH_SIZE),
+            model: embeddingModelName
+          },
+          null,
+          2
+        )
       );
     }
   } catch (error) {
@@ -307,10 +423,9 @@ export async function ingestSource(
     throw new Error(`Embedding count mismatch: expected ${chunks.length}, got ${embeddings.length}`);
   }
 
-  // Create a better summary using enhanced prompting
-  const summaryText = extractedText.text.slice(0, 8000); // Increased context
+  const summaryText = extractedText.text.slice(0, 8000);
   const wordCount = extractedText.wordCount;
-  
+
   const summaryResponse = await generateChatCompletion({
     model: 'openai/gpt-4o-mini',
     systemPrompt: `You are an expert academic research assistant. Your task is to create high-quality summaries of academic sources that will help thesis writers understand and cite the content effectively.
@@ -362,23 +477,17 @@ Return JSON with this exact structure:
 
   let summary = source.summary;
   try {
-    // Clean the response to extract just the JSON
     let responseText = summaryResponse.output.trim();
-    
-    // Remove any markdown code blocks
     responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    
-    // Try to find JSON in the response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       responseText = jsonMatch[0];
     }
-    
+
     const parsed = SourceSummarySchema.parse(JSON.parse(responseText));
     summary = parsed;
   } catch (error) {
     console.warn(`[ingestion] Failed to parse summary for ${sourceId}:`, error);
-    // Fallback to a basic summary
     summary = {
       abstract: summaryText.slice(0, 300) + '...',
       bulletPoints: [
@@ -389,54 +498,63 @@ Return JSON with this exact structure:
     };
   }
 
-  const sourceChunks: SourceChunk[] = chunks.map((chunk, index) => ({
-    id: randomUUID(),
-    sourceId,
-    projectId: source.projectId,
-    order: index,
-    text: chunk.text,
-    tokenCount: chunk.approxTokenCount,
-    embedding: embeddings[index],
-    metadata: {
-      heading: chunk.heading ?? undefined,
-      pageRange: chunk.pageRange ?? undefined
+  const sourceChunks: SourceChunk[] = chunks.map((chunk, index) => {
+    const metadata: Record<string, unknown> = {};
+    if (chunk.heading) {
+      metadata.heading = chunk.heading;
     }
-  }));
+    if (chunk.pageRange) {
+      metadata.pageRange = chunk.pageRange;
+    }
 
-  // Clean up existing chunks
+    return {
+      id: randomUUID(),
+      sourceId,
+      projectId: source.projectId,
+      order: index,
+      text: chunk.text,
+      tokenCount: chunk.approxTokenCount,
+      embedding: embeddings[index],
+      ...(Object.keys(metadata).length > 0 ? { metadata } : {})
+    };
+  });
+
   console.info(`[ingestion] Cleaning up existing chunks for ${sourceId}`);
   await deleteExistingChunks(sourceId);
 
-  // Store chunks in batches (Firestore has 500 operation limit per batch)
   console.info(`[ingestion] Storing ${sourceChunks.length} chunks for ${sourceId}`);
-  const FIRESTORE_BATCH_SIZE = 400; // Leave room for other operations
-  
+  const FIRESTORE_BATCH_SIZE = 400;
+
   try {
     for (let i = 0; i < sourceChunks.length; i += FIRESTORE_BATCH_SIZE) {
       const batchChunks = sourceChunks.slice(i, i + FIRESTORE_BATCH_SIZE);
       const batch = db.batch();
-      
+
       batchChunks.forEach((chunk) => {
         const ref = db.collection(SOURCE_CHUNKS_COLLECTION).doc(chunk.id);
         batch.set(ref, chunk);
       });
-      
+
       await batch.commit();
-      console.info(`[ingestion] Stored chunk batch ${Math.floor(i/FIRESTORE_BATCH_SIZE) + 1}/${Math.ceil(sourceChunks.length/FIRESTORE_BATCH_SIZE)}`);
+      console.info(
+        `[ingestion] Stored chunk batch ${Math.floor(i / FIRESTORE_BATCH_SIZE) + 1}/${Math.ceil(
+          sourceChunks.length / FIRESTORE_BATCH_SIZE
+        )}`
+      );
     }
 
-    // Update source document and cleanup
     const finalBatch = db.batch();
     finalBatch.set(
       sourceDocRef,
       {
         status: 'READY',
         summary,
-        embeddingModel: cached ? 'mock-embedding' : 'openai/text-embedding-3-small',
+        embeddingModel: embeddingModelName ?? 'mock-embedding',
         chunkCount: sourceChunks.length,
         totalTokens: sourceChunks.reduce((sum, chunk) => sum + chunk.tokenCount, 0),
         updatedAt: new Date().toISOString(),
-        processedAt: new Date().toISOString()
+        processedAt: new Date().toISOString(),
+        embeddingLatencyMs: embeddingLatency
       },
       { merge: true }
     );
@@ -447,124 +565,27 @@ Return JSON with this exact structure:
     console.info(`[ingestion] Successfully processed source ${sourceId} with ${sourceChunks.length} chunks`);
   } catch (error) {
     console.error(`[ingestion] Failed to store chunks for ${sourceId}:`, error);
-    // Mark source as failed
-    await sourceDocRef.set({ 
-      status: 'FAILED', 
-      updatedAt: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Unknown storage error'
-    }, { merge: true });
+    await sourceDocRef.set(
+      {
+        status: 'FAILED',
+        updatedAt: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown storage error'
+      },
+      { merge: true }
+    );
     throw error;
   }
 
   const processingTime = Date.now() - extractionStart;
-  
+
   return {
     sourceId,
     status: 'READY',
     summary,
-    embeddingModel: cached ? 'mock-embedding' : 'openai/text-embedding-3-small',
+    embeddingModel: embeddingModelName ?? 'mock-embedding',
     chunkCount: sourceChunks.length,
     processingTimeMs: processingTime
   };
-}
-
-export async function getChunksForProject(projectId: string): Promise<SourceChunk[]> {
-  const db = getFirestore();
-  const snapshot = await db
-    .collection(SOURCE_CHUNKS_COLLECTION)
-    .where('projectId', '==', projectId)
-    .orderBy('order')
-    .get();
-
-  return snapshot.docs.map((doc) => {
-    const data = doc.data() as SourceChunk;
-    return { ...data, id: doc.id };
-  });
-}
-
-export async function updateSourceStatus(sourceId: string, status: string): Promise<void> {
-  const db = getFirestore();
-  const parsed = SourceStatusSchema.safeParse(status);
-  if (!parsed.success) {
-    throw new Error(`Invalid source status supplied: ${status}`);
-  }
-  await db
-    .collection(SOURCES_COLLECTION)
-    .doc(sourceId)
-    .set({ status: parsed.data, updatedAt: new Date().toISOString() }, { merge: true });
-}
-
-export async function uploadSourceFile(
-  ownerId: string,
-  sourceId: string,
-  file: { filepath: string; mimetype?: string; originalFilename?: string }
-): Promise<SourceIngestionResult | null> {
-  const db = getFirestore();
-  const sourceDoc = await db.collection(SOURCES_COLLECTION).doc(sourceId).get();
-  const source = docToSource(sourceDoc);
-  if (!source || source.ownerId !== ownerId) {
-    return null;
-  }
-
-  try {
-    // Read file and process based on type
-    const fs = await import('fs/promises');
-    const fileBuffer = await fs.readFile(file.filepath);
-    
-    let extractedText: { text: string; wordCount: number };
-    let contentType: 'TEXT' | 'PDF';
-
-    if (file.mimetype === 'application/pdf') {
-      const pdfModule = (await import('pdf-parse')) as unknown as {
-        default?: (data: Buffer) => Promise<{ text: string }>
-      };
-      const pdfParseFn =
-        pdfModule.default ??
-        ((pdfModule as unknown) as (data: Buffer) => Promise<{ text: string }>);
-      const pdf = await pdfParseFn(fileBuffer);
-      extractedText = { text: pdf.text, wordCount: pdf.text.split(/\s+/).length };
-      contentType = 'PDF';
-    } else {
-      // Treat as text file
-      const text = fileBuffer.toString('utf-8');
-      extractedText = { text, wordCount: text.split(/\s+/).length };
-      contentType = 'TEXT';
-    }
-
-    // Store the upload payload
-    const uploadPayload: SourceUploadInput = {
-      contentType,
-      data: fileBuffer.toString('base64')
-    };
-
-    await db
-      .collection(SOURCE_UPLOADS_COLLECTION)
-      .doc(sourceId)
-      .set({ 
-        ownerId, 
-        projectId: source.projectId, 
-        ...uploadPayload, 
-        originalFilename: file.originalFilename,
-        createdAt: new Date().toISOString() 
-      });
-
-    // Update source status
-    await db
-      .collection(SOURCES_COLLECTION)
-      .doc(sourceId)
-      .set({ status: 'UPLOADED', updatedAt: new Date().toISOString() }, { merge: true });
-
-    // Automatically trigger ingestion
-    return await ingestSource(ownerId, sourceId);
-  } catch (error) {
-    // Update source status to indicate failure
-    await db
-      .collection(SOURCES_COLLECTION)
-      .doc(sourceId)
-      .set({ status: 'FAILED', updatedAt: new Date().toISOString() }, { merge: true });
-    
-    throw error;
-  }
 }
 
 async function extractText(payload: SourceUploadInput): Promise<{
@@ -577,12 +598,38 @@ async function extractText(payload: SourceUploadInput): Promise<{
   }
 
   const buffer = Buffer.from(payload.data, 'base64');
-  const pdfModule = (await import('pdf-parse')) as unknown as {
-    default?: (data: Buffer) => Promise<{ text: string }>
-  };
-  const pdfParseFn =
-    pdfModule.default ??
-    ((pdfModule as unknown) as (data: Buffer) => Promise<{ text: string }>);
+  const pdfParseFn = await loadPdfParser();
   const pdf = await pdfParseFn(buffer);
   return { text: pdf.text, wordCount: pdf.text.split(/\s+/).length };
+}
+
+type PdfParseFn = (data: Buffer) => Promise<{ text: string }>;
+
+async function loadPdfParser(): Promise<PdfParseFn> {
+  const pdfModule = await import('pdf-parse');
+  const legacyFn = (pdfModule as { default?: unknown }).default;
+  if (typeof legacyFn === 'function') {
+    return legacyFn as PdfParseFn;
+  }
+
+  const ParserClass = (pdfModule as { PDFParse?: unknown }).PDFParse;
+  if (typeof ParserClass === 'function') {
+    return async (data: Buffer) => {
+      const parser = new (ParserClass as new (options: { data: Uint8Array | Buffer }) => {
+        getText: () => Promise<{ text: string }>;
+        destroy?: () => Promise<void>;
+      })({ data });
+
+      try {
+        const { text } = await parser.getText();
+        return { text };
+      } finally {
+        if (typeof parser.destroy === 'function') {
+          await parser.destroy();
+        }
+      }
+    };
+  }
+
+  throw new Error('pdf-parse module did not export a compatible parser');
 }

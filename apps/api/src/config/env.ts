@@ -12,7 +12,12 @@ const envSchema = z
     FIREBASE_ADMIN_PROJECT_ID: z.string().optional(),
     FIREBASE_ADMIN_CLIENT_EMAIL: z.string().optional(),
     FIREBASE_ADMIN_PRIVATE_KEY: z.string().optional(),
-    OPENROUTER_API_KEY: z.string().optional()
+    OPENROUTER_API_KEY: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
+    OPENAI_EMBEDDING_MODEL: z.string().optional(),
+    PINECONE_API_KEY: z.string().optional(),
+    PINECONE_HOST: z.string().optional(),
+    PINECONE_EMBEDDING_MODEL: z.string().optional()
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV !== 'production') {
@@ -23,7 +28,11 @@ const envSchema = z
       'FIREBASE_ADMIN_PROJECT_ID',
       'FIREBASE_ADMIN_CLIENT_EMAIL',
       'FIREBASE_ADMIN_PRIVATE_KEY',
-      'OPENROUTER_API_KEY'
+      'OPENROUTER_API_KEY',
+      'OPENAI_API_KEY',
+      'PINECONE_API_KEY',
+      'PINECONE_HOST',
+      'PINECONE_EMBEDDING_MODEL'
     ] as const).forEach((key) => {
       if (!data[key]) {
         ctx.addIssue({
@@ -48,7 +57,12 @@ const {
   FIREBASE_ADMIN_PROJECT_ID,
   FIREBASE_ADMIN_CLIENT_EMAIL,
   FIREBASE_ADMIN_PRIVATE_KEY,
-  OPENROUTER_API_KEY
+  OPENROUTER_API_KEY,
+  OPENAI_API_KEY,
+  OPENAI_EMBEDDING_MODEL,
+  PINECONE_API_KEY,
+  PINECONE_HOST,
+  PINECONE_EMBEDDING_MODEL
 } = parsed.data;
 
 const firebaseAdmin =
@@ -66,5 +80,10 @@ export const env = {
   port: PORT,
   nodeEnv: NODE_ENV,
   firebaseAdmin,
-  openRouterApiKey: OPENROUTER_API_KEY
+  openRouterApiKey: OPENROUTER_API_KEY,
+  openAiApiKey: OPENAI_API_KEY,
+  openAiEmbeddingModel: OPENAI_EMBEDDING_MODEL,
+  pineconeApiKey: PINECONE_API_KEY,
+  pineconeHost: PINECONE_HOST,
+  pineconeEmbeddingModel: PINECONE_EMBEDDING_MODEL
 } as const;

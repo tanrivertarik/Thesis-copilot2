@@ -10,7 +10,7 @@ import {
   Text,
   Textarea
 } from '@chakra-ui/react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../shared/PageShell';
 import { useOnboarding, useOnboardingStepNavigation } from './OnboardingContext';
@@ -55,23 +55,32 @@ export function ResearchInputsStep() {
     }
   };
 
-  useOnboardingStepNavigation({
-    onPrevious: () => {
-      navigate('/onboarding/start');
-      return false;
-    },
-    onNext: async () => {
-      if (researchDraft.text.trim()) {
-        const ok = await attemptIngestion();
-        if (ok) {
-          navigate('/onboarding/summary');
-        }
-      } else {
+  const handlePrevious = useCallback(() => {
+    navigate('/onboarding/start');
+    return false;
+  }, [navigate]);
+
+  const handleNext = useCallback(async () => {
+    if (researchDraft.text.trim()) {
+      const ok = await attemptIngestion();
+      if (ok) {
         navigate('/onboarding/summary');
       }
-      return false;
+    } else {
+      navigate('/onboarding/summary');
     }
-  });
+    return false;
+  }, [attemptIngestion, navigate, researchDraft.text]);
+
+  const navigationHandlers = useMemo(
+    () => ({
+      onPrevious: handlePrevious,
+      onNext: handleNext
+    }),
+    [handleNext, handlePrevious]
+  );
+
+  useOnboardingStepNavigation(navigationHandlers);
 
   return (
     <form onSubmit={handleSubmit} noValidate>

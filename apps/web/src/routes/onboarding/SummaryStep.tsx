@@ -1,4 +1,5 @@
 import { Button, Divider, Stack, Text } from '@chakra-ui/react';
+import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../shared/PageShell';
 import { useOnboarding, useOnboardingStepNavigation } from './OnboardingContext';
@@ -7,16 +8,25 @@ export function SummaryStep() {
   const navigate = useNavigate();
   const { project, ingestionResult, resetIngestion } = useOnboarding();
 
-  useOnboardingStepNavigation({
-    onPrevious: () => {
-      navigate('/onboarding/sources');
-      return false;
-    },
-    onNext: () => {
-      navigate('/workspace');
-      return false;
-    }
-  });
+  const handlePrevious = useCallback(() => {
+    navigate('/onboarding/sources');
+    return false;
+  }, [navigate]);
+
+  const handleNext = useCallback(() => {
+    navigate('/workspace');
+    return false;
+  }, [navigate]);
+
+  const navigationHandlers = useMemo(
+    () => ({
+      onPrevious: handlePrevious,
+      onNext: handleNext
+    }),
+    [handleNext, handlePrevious]
+  );
+
+  useOnboardingStepNavigation(navigationHandlers);
 
   return (
     <PageShell

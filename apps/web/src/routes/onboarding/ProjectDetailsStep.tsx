@@ -63,19 +63,28 @@ export function ProjectDetailsStep() {
     }
   };
 
-  useOnboardingStepNavigation({
-    onPrevious: () => {
-      navigate('/onboarding');
-      return false;
-    },
-    onNext: async () => {
-      const ok = await persistProject();
-      if (ok) {
-        navigate('/onboarding/sources');
-      }
-      return false;
+  const handlePrevious = useCallback(() => {
+    navigate('/onboarding');
+    return false;
+  }, [navigate]);
+
+  const handleNext = useCallback(async () => {
+    const ok = await persistProject();
+    if (ok) {
+      navigate('/onboarding/sources');
     }
-  });
+    return false;
+  }, [navigate, persistProject]);
+
+  const navigationHandlers = useMemo(
+    () => ({
+      onPrevious: handlePrevious,
+      onNext: handleNext
+    }),
+    [handleNext, handlePrevious]
+  );
+
+  useOnboardingStepNavigation(navigationHandlers);
 
   const helperText = useMemo(() => {
     if (project) {
