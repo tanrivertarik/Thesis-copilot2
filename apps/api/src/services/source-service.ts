@@ -358,7 +358,7 @@ async function processIngestionWithExtractedText({
   let embeddingLatency = 0;
   let embeddingUsage: any;
   let cached = false;
-  let embeddingModelName: string | null = null;
+  let embeddingModelName: string | undefined;
 
   try {
     console.info(`[ingestion] Generating embeddings for ${chunks.length} chunks`);

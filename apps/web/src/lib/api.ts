@@ -12,7 +12,8 @@ import type {
   SectionDraftResponse,
   Source,
   SourceCreateInput,
-  SourceIngestionResult
+  SourceIngestionResult,
+  ThesisConstitution
 } from '@thesis-copilot/shared';
 import { env } from './env';
 import { getIdToken } from './auth-token';
@@ -172,4 +173,48 @@ export async function requestParagraphRewrite(
     method: 'POST',
     body: JSON.stringify(payload)
   });
+}
+
+export type AcademicLevel = 'UNDERGRADUATE' | 'MASTERS' | 'PHD';
+
+export type ConstitutionGenerationPayload = {
+  academicLevel: AcademicLevel;
+  discipline: string;
+  includeExistingSources?: boolean;
+};
+
+export type ConstitutionGenerationResult = {
+  constitution: ThesisConstitution;
+  metadata: {
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    latencyMs: number;
+    academicLevel: string;
+    discipline: string;
+    sourcesIncluded: number;
+  };
+};
+
+export type ConstitutionSuggestions = {
+  suggestedAcademicLevel: AcademicLevel;
+  suggestedDiscipline: string;
+  reasoning: string;
+  sourcesAvailable: number;
+};
+
+export async function generateProjectConstitution(
+  projectId: string,
+  payload: ConstitutionGenerationPayload
+): Promise<ConstitutionGenerationResult> {
+  return request<ConstitutionGenerationResult>(`/api/projects/${projectId}/constitution/generate`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function fetchConstitutionSuggestions(
+  projectId: string
+): Promise<ConstitutionSuggestions> {
+  return request<ConstitutionSuggestions>(`/api/projects/${projectId}/constitution/suggestions`);
 }

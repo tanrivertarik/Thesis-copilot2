@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { jsonrepair } from 'jsonrepair';
 import { getFirestore } from '../lib/firestore.js';
 import { generateChatCompletion } from '../ai/openrouter.js';
 import type { 
@@ -130,6 +131,46 @@ Return the updated constitution in the same JSON format, maintaining all require
 
 const GENERATION_MODEL = 'anthropic/claude-3.5-sonnet';
 
+function extractJsonPayload(rawOutput: string): string {
+  const trimmed = rawOutput.trim();
+  if (!trimmed) {
+    return '{}';
+  }
+
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const withoutFence = fencedMatch ? fencedMatch[1] : trimmed;
+
+  const start = withoutFence.indexOf('{');
+  const end = withoutFence.lastIndexOf('}');
+
+  if (start !== -1 && end !== -1 && end > start) {
+    return withoutFence.slice(start, end + 1);
+  }
+
+  return withoutFence;
+}
+
+function parseConstitutionJson(rawOutput: string): any {
+  const candidate = extractJsonPayload(rawOutput);
+
+  try {
+    return JSON.parse(candidate);
+  } catch (error) {
+    try {
+      const repaired = jsonrepair(candidate);
+      return JSON.parse(repaired);
+    } catch (repairError) {
+      const snippet = candidate.slice(0, 500);
+      const parseMessage = error instanceof Error ? error.message : 'Unknown parse error';
+      const repairMessage =
+        repairError instanceof Error ? repairError.message : 'Unknown repair error';
+      throw new Error(
+        `Failed to parse constitution JSON. parseError=${parseMessage}; repairError=${repairMessage}; snippet=${snippet}`
+      );
+    }
+  }
+}
+
 export interface ConstitutionGenerationRequest {
   projectId: string;
   academicLevel: 'UNDERGRADUATE' | 'MASTERS' | 'PHD';
@@ -216,7 +257,7 @@ export async function generateConstitution(
     maxTokens: 3000
   });
 
-  const constitutionData = JSON.parse(response.output || '{}');
+  const constitutionData = parseConstitutionJson(response.output || '');
 
   // Validate and structure the constitution
   const constitution: ThesisConstitution = {
@@ -290,7 +331,7 @@ export async function refineConstitution(
     maxTokens: 3000
   });
 
-  const refinedData = JSON.parse(response.output || '{}');
+  const refinedData = parseConstitutionJson(response.output || '');
 
   // Structure refined constitution
   let constitution: ThesisConstitution = {

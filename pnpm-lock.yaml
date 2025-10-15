@@ -95,6 +95,9 @@ importers:
       helmet:
         specifier: ^7.1.0
         version: 7.2.0
+      jsonrepair:
+        specifier: ^3.13.1
+        version: 3.13.1
       morgan:
         specifier: ^1.10.0
         version: 1.10.1
@@ -132,6 +135,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@chakra-ui/icons':
+        specifier: ^2.1.1
+        version: 2.2.4(@chakra-ui/react@2.10.9)(react@19.2.0)
       '@chakra-ui/react':
         specifier: ^2.8.2
         version: 2.10.9(@emotion/react@11.14.0)(@emotion/styled@11.14.1)(@types/react@19.2.2)(framer-motion@11.18.2)(react-dom@19.2.0)(react@19.2.0)
@@ -475,6 +481,16 @@ packages:
       '@zag-js/element-size': 0.31.1
       copy-to-clipboard: 3.3.3
       framesync: 6.1.2
+      react: 19.2.0
+    dev: false
+
+  /@chakra-ui/icons@2.2.4(@chakra-ui/react@2.10.9)(react@19.2.0):
+    resolution: {integrity: sha512-l5QdBgwrAg3Sc2BRqtNkJpfuLw/pWRDwwT58J6c4PqQT6wzXxyNa8Q0PForu1ltB5qEiFb1kxr/F/HO1EwNa6g==}
+    peerDependencies:
+      '@chakra-ui/react': '>=2.0.0'
+      react: '>=18'
+    dependencies:
+      '@chakra-ui/react': 2.10.9(@emotion/react@11.14.0)(@emotion/styled@11.14.1)(@types/react@19.2.2)(framer-motion@11.18.2)(react-dom@19.2.0)(react@19.2.0)
       react: 19.2.0
     dev: false
 
@@ -5779,6 +5795,11 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
     dev: true
+
+  /jsonrepair@3.13.1:
+    resolution: {integrity: sha512-WJeiE0jGfxYmtLwBTEk8+y/mYcaleyLXWaqp5bJu0/ZTSeG0KQq/wWQ8pmnkKenEdN6pdnn6QtcoSUkbqDHWNw==}
+    hasBin: true
+    dev: false
 
   /jsonwebtoken@9.0.2:
     resolution: {integrity: sha512-PRp66vJ865SSqOlgqS8hujT5U4AOgMfhrwYIuIhfKaoSCZcirrmASQr8CX7cUg+RMih+hgznrjp99o+W4pJLHQ==}

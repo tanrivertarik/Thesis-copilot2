@@ -61,6 +61,7 @@ type OnboardingContextValue = {
   researchDraft: ResearchFormValues;
   updateResearchDraft: (updates: Partial<ResearchFormValues>) => void;
   resetResearchDraft: (draft?: ResearchFormValues) => void;
+  reloadProject: () => Promise<Project | null>;
   navigationHandlers: OnboardingNavigationHandlers;
   registerNavigationHandlers: (handlers: OnboardingNavigationHandlers) => () => void;
 };
@@ -112,6 +113,21 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const hasHydratedFromStorage = useRef(false);
   const storageProvidedProjectDraft = useRef(false);
+  const loadLatestProject = useCallback(async () => {
+    try {
+      const projects = await fetchProjects();
+      const latestProject = projects[0] ?? null;
+      setProject(latestProject);
+      if (latestProject && !storageProvidedProjectDraft.current) {
+        setProjectDraft(projectToDraft(latestProject));
+      }
+      setProjectError(null);
+      return latestProject;
+    } catch (error) {
+      setProjectError((error as Error).message);
+      throw error;
+    }
+  }, [storageProvidedProjectDraft]);
 
   useEffect(() => {
     if (hasHydratedFromStorage.current) {
@@ -154,24 +170,21 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, [projectDraft, researchDraft]);
 
   useEffect(() => {
-    const loadProject = async () => {
-      try {
-        const projects = await fetchProjects();
-        const latestProject = projects[0] ?? null;
-        setProject(latestProject);
-        if (latestProject && !storageProvidedProjectDraft.current) {
-          setProjectDraft(projectToDraft(latestProject));
-        }
-        setProjectError(null);
-      } catch (error) {
-        setProjectError((error as Error).message);
-      } finally {
+    loadLatestProject()
+      .catch(() => undefined)
+      .finally(() => {
         setProjectLoading(false);
-      }
-    };
+      });
+  }, [loadLatestProject]);
 
-    loadProject();
-  }, []);
+  const reloadProject = useCallback(async () => {
+    setProjectLoading(true);
+    try {
+      return await loadLatestProject();
+    } finally {
+      setProjectLoading(false);
+    }
+  }, [loadLatestProject]);
 
   const saveProject = useCallback(async (values: ProjectFormValues) => {
     setSavingProject(true);
@@ -307,6 +320,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       researchDraft,
       updateResearchDraft,
       resetResearchDraft,
+      reloadProject,
       navigationHandlers,
       registerNavigationHandlers
     }),
@@ -327,6 +341,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       researchDraft,
       updateResearchDraft,
       resetResearchDraft,
+      reloadProject,
       navigationHandlers,
       registerNavigationHandlers
     ]

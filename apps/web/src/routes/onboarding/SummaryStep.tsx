@@ -1,12 +1,16 @@
-import { Button, Divider, Stack, Text } from '@chakra-ui/react';
-import { useCallback, useMemo } from 'react';
+import { Button, Divider, Stack, Text, useToast } from '@chakra-ui/react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../shared/PageShell';
 import { useOnboarding, useOnboardingStepNavigation } from './OnboardingContext';
+import { generateProjectConstitution, fetchConstitutionSuggestions } from '../../lib/api';
+import type { AcademicLevel } from '../../lib/api';
 
 export function SummaryStep() {
   const navigate = useNavigate();
-  const { project, ingestionResult, resetIngestion } = useOnboarding();
+  const toast = useToast();
+  const { project, ingestionResult, resetIngestion, reloadProject } = useOnboarding();
+  const [generating, setGenerating] = useState(false);
 
   const handlePrevious = useCallback(() => {
     navigate('/onboarding/sources');
@@ -14,9 +18,59 @@ export function SummaryStep() {
   }, [navigate]);
 
   const handleNext = useCallback(() => {
-    navigate('/workspace');
+    void (async () => {
+      if (!project) {
+        navigate('/workspace');
+        return;
+      }
+
+      const isAcademicLevel = (value: string): value is AcademicLevel =>
+        value === 'UNDERGRADUATE' || value === 'MASTERS' || value === 'PHD';
+
+      setGenerating(true);
+      try {
+        let academicLevel: AcademicLevel = 'MASTERS';
+        let discipline = 'General Research';
+        let includeExistingSources = Boolean(ingestionResult);
+
+        try {
+          const suggestions = await fetchConstitutionSuggestions(project.id);
+          if (isAcademicLevel(suggestions.suggestedAcademicLevel)) {
+            academicLevel = suggestions.suggestedAcademicLevel;
+          }
+          if (suggestions.suggestedDiscipline.trim().length > 0) {
+            discipline = suggestions.suggestedDiscipline;
+          }
+          includeExistingSources = suggestions.sourcesAvailable > 0;
+        } catch (suggestionError) {
+          console.warn('[onboarding] Failed to fetch constitution suggestions', suggestionError);
+        }
+
+        await generateProjectConstitution(project.id, {
+          academicLevel,
+          discipline,
+          includeExistingSources
+        });
+        await reloadProject();
+
+        toast({
+          status: 'success',
+          title: 'Thesis constitution generated',
+          description: 'Your workspace is ready to manage sections.'
+        });
+        navigate('/workspace');
+      } catch (error) {
+        toast({
+          status: 'error',
+          title: 'Unable to generate constitution',
+          description: (error as Error).message
+        });
+      } finally {
+        setGenerating(false);
+      }
+    })();
     return false;
-  }, [navigate]);
+  }, [project, navigate, toast, reloadProject, ingestionResult]);
 
   const navigationHandlers = useMemo(
     () => ({
@@ -34,13 +88,31 @@ export function SummaryStep() {
       description="Confirm your inputs before we create your Thesis Constitution."
       actions={
         <Stack direction={{ base: 'column', md: 'row' }} spacing={3}>
-          <Button colorScheme="blue" onClick={() => navigate('/workspace')}>
+          <Button
+            colorScheme="blue"
+            onClick={() => {
+              void handleNext();
+            }}
+            isLoading={generating}
+            loadingText="Generating..."
+            isDisabled={generating}
+          >
             Continue to workspace
           </Button>
-          <Button variant="outline" colorScheme="blue" onClick={() => navigate('/onboarding/start')}>
+          <Button
+            variant="outline"
+            colorScheme="blue"
+            onClick={() => navigate('/onboarding/start')}
+            isDisabled={generating}
+          >
             Edit project details
           </Button>
-          <Button variant="ghost" colorScheme="blue" onClick={() => navigate('/onboarding/sources')}>
+          <Button
+            variant="ghost"
+            colorScheme="blue"
+            onClick={() => navigate('/onboarding/sources')}
+            isDisabled={generating}
+          >
             Add more sources
           </Button>
         </Stack>
@@ -110,8 +182,8 @@ export function SummaryStep() {
         <Divider borderColor="rgba(148, 163, 230, 0.4)" />
 
         <Text fontSize="sm" color="blue.200">
-          Coming soon: generate your Thesis Constitution directly from this screen and manage
-          version history for each iteration.
+          When you continue, we’ll generate your Thesis Constitution using the details and sources
+          you’ve provided.
         </Text>
       </Stack>
     </PageShell>
