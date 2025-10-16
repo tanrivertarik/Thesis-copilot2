@@ -17,6 +17,7 @@ import { PageShell } from '../shared/PageShell';
 import { TipTapEditor } from './components/TipTapEditor';
 import { CitationSidebar } from './components/CitationSidebar';
 import { DraftProvider, useDraft } from './components/EditorContext';
+import { DocumentPage } from './components/DocumentPage';
 import { requestParagraphRewrite } from '../../lib/api';
 
 type ParagraphInfo = {
@@ -209,31 +210,33 @@ function EditorContentView({
   ) : null;
 
   return (
-    <Flex direction={{ base: 'column', lg: 'row' }} gap={6} align="flex-start">
-      <Stack flex="1" spacing={4} color="blue.50">
-        {error ? (
-          <Alert status="error" borderRadius="lg" bg="rgba(220, 38, 38, 0.12)" color="red.100">
-            <AlertIcon />
-            <Text>{error}</Text>
-          </Alert>
-        ) : null}
+    <Box>
+      {error ? (
+        <Alert status="error" borderRadius="lg" bg="rgba(220, 38, 38, 0.12)" color="red.100" mb={4}>
+          <AlertIcon />
+          <Text>{error}</Text>
+        </Alert>
+      ) : null}
 
-        {rewriteAlert}
+      {rewriteAlert}
 
-        {isLoading ? (
-          <Stack spacing={3}>
-            <Skeleton height="260px" borderRadius="2xl" />
-            <Skeleton height="20px" borderRadius="lg" />
-          </Stack>
-        ) : (
-          <>
-            <TipTapEditor
-              content={html}
-              onUpdate={setHtml}
-              isSaving={isSaving}
-              onEditorReady={onEditorReady}
-            />
-            <Text fontSize="sm" color="blue.200">
+      {isLoading ? (
+        <Stack spacing={3}>
+          <Skeleton height="260px" borderRadius="2xl" />
+          <Skeleton height="20px" borderRadius="lg" />
+        </Stack>
+      ) : (
+        <Flex direction={{ base: 'column', lg: 'row' }} gap={6} align="flex-start">
+          <Box flex="1" width="100%">
+            <DocumentPage>
+              <TipTapEditor
+                content={html}
+                onUpdate={setHtml}
+                isSaving={isSaving}
+                onEditorReady={onEditorReady}
+              />
+            </DocumentPage>
+            <Text fontSize="sm" color="gray.600" mt={4} textAlign="center">
               {isSaving
                 ? 'Saving changes… '
                 : hasUnsavedChanges
@@ -244,11 +247,13 @@ function EditorContentView({
               Highlight a paragraph and use "Request rewrite" to preview alternative phrasings.
             </Text>
             {rewritePreview}
-          </>
-        )}
-      </Stack>
-      <CitationSidebar citations={citations} onInsertCitation={handleInsertCitation} />
-    </Flex>
+          </Box>
+          <Box flexShrink={0}>
+            <CitationSidebar citations={citations} onInsertCitation={handleInsertCitation} />
+          </Box>
+        </Flex>
+      )}
+    </Box>
   );
 }
 

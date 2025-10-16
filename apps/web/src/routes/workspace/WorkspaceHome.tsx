@@ -37,11 +37,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   fetchProjects,
   fetchSources,
-  generateDraft,
   submitRetrieval,
-  updateProject
+  updateProject,
+  saveDraft,
+  generateDraft
 } from '../../lib/api';
 import { PageShell } from '../shared/PageShell';
+import { useStreamingDraft } from '../../lib/hooks/useStreamingDraft';
 
 type SectionStatus = 'NEEDS_SOURCES' | 'READY_TO_DRAFT';
 
@@ -264,6 +266,48 @@ export function WorkspaceHome() {
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const [savingSection, setSavingSection] = useState(false);
+  const [generatingInitialDraft, setGeneratingInitialDraft] = useState(false);
+
+  const { generateDraftStreaming } = useStreamingDraft({
+    onComplete: async (fullText) => {
+      // Save the generated draft to Firestore
+      if (project && selectedSection) {
+        try {
+          await saveDraft(project.id, selectedSection.id, {
+            html: fullText,
+            citations: [],
+            annotations: []
+          });
+
+          toast({
+            status: 'success',
+            title: 'Draft generated',
+            description: 'Your draft has been created successfully!'
+          });
+
+          // Navigate to editor
+          navigate(
+            `/workspace/drafting?projectId=${encodeURIComponent(project.id)}&sectionId=${encodeURIComponent(
+              selectedSection.id
+            )}`
+          );
+        } catch (error) {
+          toast({
+            status: 'error',
+            title: 'Failed to save draft',
+            description: (error as Error).message
+          });
+        }
+      }
+    },
+    onError: (error) => {
+      toast({
+        status: 'error',
+        title: 'Draft generation failed',
+        description: error
+      });
+    }
+  });
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -484,16 +528,64 @@ export function WorkspaceHome() {
     [project, addSectionModal, toast]
   );
 
-  const handleStartDrafting = () => {
+  const handleStartDrafting = useCallback(async () => {
     if (!project || !selectedSection) {
       return;
     }
-    navigate(
-      `/workspace/drafting?projectId=${encodeURIComponent(project.id)}&sectionId=${encodeURIComponent(
-        selectedSection.id
-      )}`
-    );
-  };
+
+    setGeneratingInitialDraft(true);
+    setInfoMessage(null);
+
+    try {
+      // First, retrieve relevant evidence from sources
+      const retrieval = await submitRetrieval({
+        projectId: project.id,
+        sectionId: selectedSection.id,
+        query: selectedSection.objective,
+        limit: 5
+      });
+
+      if (retrieval.chunks.length === 0) {
+        toast({
+          status: 'warning',
+          title: 'No evidence found',
+          description: 'Upload and ingest more sources before generating a draft.'
+        });
+        setGeneratingInitialDraft(false);
+        return;
+      }
+
+      // Generate the initial draft using streaming AI
+      await generateDraftStreaming({
+        projectId: project.id,
+        sectionId: selectedSection.id,
+        section: selectedSection,
+        thesisSummary: {
+          scope: project.constitution?.scope,
+          toneGuidelines: project.constitution?.toneGuidelines,
+          coreArgument: project.constitution?.coreArgument
+        },
+        citationStyle: project.citationStyle,
+        chunks: retrieval.chunks.slice(0, 4).map((chunk) => ({
+          id: chunk.id,
+          sourceId: chunk.sourceId,
+          projectId: chunk.projectId,
+          text: chunk.text,
+          metadata: chunk.metadata
+        })),
+        maxTokens: 600
+      });
+    } catch (error) {
+      const message = (error as Error).message;
+      toast({
+        status: 'error',
+        title: 'Draft generation failed',
+        description: message
+      });
+    } finally {
+      setGeneratingInitialDraft(false);
+    }
+  }, [project, selectedSection, toast, generateDraftStreaming]);
 
   if (loadingProject) {
     return (
@@ -680,8 +772,10 @@ export function WorkspaceHome() {
                   </Button>
                   <Button
                     colorScheme="blue"
-                    onClick={handleStartDrafting}
-                    isDisabled={!hasReadySources}
+                    onClick={() => void handleStartDrafting()}
+                    isDisabled={!hasReadySources || generatingInitialDraft}
+                    isLoading={generatingInitialDraft}
+                    loadingText="Generating draft..."
                   >
                     Start drafting
                   </Button>

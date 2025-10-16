@@ -94,35 +94,49 @@ export function TipTapEditor({
 
   return (
     <Card
-      bg="rgba(15,23,42,0.7)"
-      border="1px solid rgba(63,131,248,0.25)"
-      borderRadius="2xl"
+      bg="white"
+      border="none"
+      borderRadius="0"
+      boxShadow="none"
       opacity={isSaving ? 0.9 : 1}
       transition="opacity 0.2s ease"
     >
       <CardBody
-        pb={6}
+        p={0}
         display="flex"
         flexDirection="column"
         gap={3}
         sx={{
           '.thesis-editor-content': {
-            color: 'rgba(241,245,255,0.92)',
-            minHeight: '320px',
-            lineHeight: 1.7,
-            '& .citation-token': {
-              background: 'rgba(147,197,253,0.18)',
-              borderBottom: '1px dashed rgba(147,197,253,0.7)',
-              borderRadius: '4px',
-              padding: '0 2px'
+            minHeight: '500px',
+            outline: 'none',
+            
+            '&:focus': {
+              outline: 'none'
             },
-            '& p': {
-              marginBottom: '1em'
+            
+            // Inherit all the styling from DocumentPage
+            '& > *': {
+              outline: 'none'
             }
           }
         }}
       >
-        {toolbar ? <HStack justify="flex-start">{toolbar}</HStack> : null}
+        {toolbar ? (
+          <HStack 
+            justify="flex-start" 
+            position="sticky" 
+            top="0" 
+            bg="white" 
+            zIndex={10}
+            py={2}
+            borderBottom="1px solid"
+            borderColor="gray.200"
+            mb={4}
+          >
+            {toolbar}
+          </HStack>
+        ) : null}
         <EditorContent editor={editor} />
       </CardBody>
     </Card>

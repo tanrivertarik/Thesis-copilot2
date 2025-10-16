@@ -82,7 +82,7 @@ class EnhancedDraftingService {
 
       // Generate draft using AI
       const aiResponse = await generateChatCompletion({
-        model: 'google/gemini-2.0-flash-exp',
+        model: 'google/gemini-2.5-flash',
         systemPrompt: ENHANCED_DRAFTING_SYSTEM_PROMPT,
         userPrompt: prompt,
         temperature: 0.3,
@@ -199,7 +199,7 @@ Generate compelling, evidence-based content that advances the thesis argument wh
 
       // Generate rewrite using AI
       const aiResponse = await generateChatCompletion({
-        model: 'google/gemini-2.0-flash-exp',
+        model: 'google/gemini-2.5-flash',
         systemPrompt: ENHANCED_REWRITE_SYSTEM_PROMPT,
         userPrompt: prompt,
         temperature: 0.2, // Lower temperature for more conservative rewrites
@@ -439,7 +439,7 @@ Write clear, academic prose with proper citations.`;
 
     try {
       const aiResponse = await generateChatCompletion({
-        model: 'google/gemini-2.0-flash-exp',
+        model: 'google/gemini-2.5-flash',
         systemPrompt: 'You are an academic writing assistant. Write clear, well-cited academic prose.',
         userPrompt: basicPrompt,
         temperature: 0.3,
