@@ -117,55 +117,30 @@ export function ProjectDetailsStep() {
             <Alert
               status="error"
               borderRadius="lg"
-              bg="rgba(220,38,38,0.1)"
-              color="red.200"
-              border="1px solid rgba(239, 68, 68, 0.3)"
+              bg="rgba(239, 68, 68, 0.08)"
+              border="1px solid rgba(239, 68, 68, 0.2)"
             >
-              <AlertIcon />
-              <AlertDescription>{alertMessage}</AlertDescription>
+              <AlertIcon color="red.500" />
+              <AlertDescription color="academic.primaryText">{alertMessage}</AlertDescription>
             </Alert>
           ) : null}
 
-          {/* Helper Box */}
-          <Box
-            bg="linear-gradient(135deg, rgba(91, 130, 245, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)"
-            borderRadius="lg"
-            p={4}
-            border="1px solid rgba(95, 130, 245, 0.2)"
-          >
-            <Stack direction="row" spacing={3}>
-              <Icon as={InfoIcon} color="brand.400" mt={1} flexShrink={0} />
-              <VStack align="start" spacing={1}>
-                <Text fontWeight="semibold" color="brand.200" fontSize="sm">
-                  These details guide your Thesis Constitution
-                </Text>
-                <Text color="blue.200" fontSize="sm">
-                  Your Constitution will use this information to generate a tailored outline, scope statement,
-                  and academic tone guidelines.
-                </Text>
-              </VStack>
-            </Stack>
-          </Box>
+          {/* Helper Text */}
+          <Text color="academic.secondaryText" fontSize="sm">
+            Your Constitution will use this information to generate a tailored outline, scope statement,
+            and academic tone guidelines.
+          </Text>
 
           {/* Form Fields */}
           <VStack spacing={8} align="stretch">
             {/* Thesis Title */}
             <FormControl isRequired>
               <Stack spacing={2}>
-                <Stack spacing={1}>
-                  <FormLabel color="blue.50" fontWeight="semibold" fontSize="md">
-                    📚 Thesis Title
-                  </FormLabel>
-                  <Text color="blue.300" fontSize="sm">
-                    A clear, concise title for your research project
-                  </Text>
-                </Stack>
+                <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
+                  Thesis Title
+                </FormLabel>
                 <Input
                   placeholder="e.g., The Impact of Social Media on Community Engagement"
-                  bg="surface.card"
-                  borderColor="surface.border"
-                  color="blue.50"
-                  _placeholder={{ color: 'blue.600' }}
                   size="lg"
                   value={projectDraft.title}
                   onChange={(event) => updateProjectDraft({ title: event.target.value })}
@@ -176,22 +151,16 @@ export function ProjectDetailsStep() {
             {/* Topic Description */}
             <FormControl isRequired>
               <Stack spacing={2}>
-                <Stack spacing={1}>
-                  <FormLabel color="blue.50" fontWeight="semibold" fontSize="md">
-                    🔍 Topic Description
-                  </FormLabel>
-                  <Text color="blue.300" fontSize="sm">
-                    1-2 sentences summarizing your research focus and objectives
-                  </Text>
-                </Stack>
+                <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
+                  Topic Description
+                </FormLabel>
+                <Text color="academic.secondaryText" fontSize="sm" mb={1}>
+                  1-2 sentences summarizing your research focus and objectives
+                </Text>
                 <Textarea
                   rows={4}
                   placeholder="Describe what your thesis is about, the scope of your research, and your main objectives..."
-                  bg="surface.card"
-                  borderColor="surface.border"
-                  color="blue.50"
-                  _placeholder={{ color: 'blue.600' }}
-                  size="md"
+                  resize="vertical"
                   value={projectDraft.topic}
                   onChange={(event) => updateProjectDraft({ topic: event.target.value })}
                 />
@@ -201,27 +170,21 @@ export function ProjectDetailsStep() {
             {/* Research Questions */}
             <FormControl isRequired>
               <Stack spacing={2}>
-                <Stack spacing={1}>
-                  <FormLabel color="blue.50" fontWeight="semibold" fontSize="md">
-                    ❓ Core Research Questions
-                  </FormLabel>
-                  <Text color="blue.300" fontSize="sm">
-                    2-4 key questions your thesis aims to answer (one per line)
-                  </Text>
-                </Stack>
+                <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
+                  Core Research Questions
+                </FormLabel>
+                <Text color="academic.secondaryText" fontSize="sm" mb={1}>
+                  2-4 key questions your thesis aims to answer (one per line)
+                </Text>
                 <Textarea
                   rows={4}
                   placeholder="E.g.:&#10;How does social media usage correlate with community participation?&#10;What role do algorithm recommendations play in information sharing?"
-                  bg="surface.card"
-                  borderColor="surface.border"
-                  color="blue.50"
-                  _placeholder={{ color: 'blue.600' }}
-                  size="md"
+                  resize="vertical"
                   value={projectDraft.researchQuestions}
                   onChange={(event) => updateProjectDraft({ researchQuestions: event.target.value })}
                 />
-                <Text fontSize="sm" color="brand.300">
-                  💡 Tip: Focus on 2–4 questions to start. You can expand or refine later.
+                <Text fontSize="sm" color="academic.secondaryText" fontStyle="italic">
+                  Tip: Focus on 2–4 questions to start. You can expand or refine later.
                 </Text>
               </Stack>
             </FormControl>
@@ -229,22 +192,16 @@ export function ProjectDetailsStep() {
             {/* Thesis Statement */}
             <FormControl>
               <Stack spacing={2}>
-                <Stack spacing={1}>
-                  <FormLabel color="blue.50" fontWeight="semibold" fontSize="md">
-                    ✨ Working Thesis Statement (Optional)
-                  </FormLabel>
-                  <Text color="blue.300" fontSize="sm">
-                    Your preliminary main argument or hypothesis
-                  </Text>
-                </Stack>
+                <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
+                  Working Thesis Statement (Optional)
+                </FormLabel>
+                <Text color="academic.secondaryText" fontSize="sm" mb={1}>
+                  Your preliminary main argument or hypothesis
+                </Text>
                 <Textarea
                   rows={3}
                   placeholder="Your working thesis statement, even if rough..."
-                  bg="surface.card"
-                  borderColor="surface.border"
-                  color="blue.50"
-                  _placeholder={{ color: 'blue.600' }}
-                  size="md"
+                  resize="vertical"
                   value={projectDraft.thesisStatement ?? ''}
                   onChange={(event) => updateProjectDraft({ thesisStatement: event.target.value })}
                 />
@@ -254,14 +211,9 @@ export function ProjectDetailsStep() {
             {/* Citation Style */}
             <FormControl isRequired>
               <Stack spacing={2}>
-                <Stack spacing={1}>
-                  <FormLabel color="blue.50" fontWeight="semibold" fontSize="md">
-                    📋 Citation Style
-                  </FormLabel>
-                  <Text color="blue.300" fontSize="sm">
-                    Choose your preferred citation format
-                  </Text>
-                </Stack>
+                <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
+                  Citation Style
+                </FormLabel>
                 <Select
                   value={projectDraft.citationStyle}
                   onChange={(event) =>
@@ -269,9 +221,6 @@ export function ProjectDetailsStep() {
                       citationStyle: event.target.value as (typeof citationOptions)[number]
                     })
                   }
-                  bg="surface.card"
-                  borderColor="surface.border"
-                  color="blue.50"
                   size="lg"
                 >
                   {citationOptions.map((style) => (
@@ -284,20 +233,6 @@ export function ProjectDetailsStep() {
             </FormControl>
           </VStack>
 
-          {/* Helper Text */}
-          <Box
-            bg="rgba(91, 130, 245, 0.05)"
-            borderRadius="lg"
-            p={4}
-            border="1px solid surface.borderLight"
-          >
-            <Text fontSize="sm" color="blue.200">
-              {project
-                ? '✓ Your project details are saved and can be updated anytime.'
-                : '→ These details will be saved to your profile and used to generate your Constitution.'}
-            </Text>
-          </Box>
-
           {/* Form Actions */}
           <Stack direction={{ base: 'column', md: 'row' }} spacing={4} pt={4}>
             <Button
@@ -306,13 +241,11 @@ export function ProjectDetailsStep() {
               isLoading={savingProject}
               isDisabled={isDisabled}
               size="lg"
-              boxShadow="0 10px 20px rgba(91, 130, 245, 0.3)"
             >
               Save & Continue
             </Button>
             <Button
               variant="outline"
-              colorScheme="brand"
               onClick={() => navigate('/onboarding')}
               isDisabled={isDisabled}
               size="lg"

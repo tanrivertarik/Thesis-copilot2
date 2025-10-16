@@ -11,20 +11,25 @@ export function PageShell({ title, description, actions, children }: PageShellPr
   return (
     <Box
       w="full"
-      borderRadius="2xl"
-      bg="white"
-      border="1px solid rgba(91, 130, 245, 0.12)"
-      boxShadow="0 2px 8px rgba(0, 0, 0, 0.08)"
+      borderRadius="lg"
+      bg="academic.paper"
+      boxShadow="0 4px 12px rgba(0, 0, 0, 0.05)"
       px={{ base: 8, md: 12 }}
       py={{ base: 10, md: 14 }}
     >
       <Stack spacing={{ base: 8, md: 10 }}>
         <Stack spacing={4}>
-          <Heading size="2xl" letterSpacing="-0.04em" color="gray.900">
+          <Heading 
+            size="2xl" 
+            letterSpacing="-0.02em" 
+            fontFamily="heading"
+            color="academic.primaryText"
+            fontWeight="bold"
+          >
             {title}
           </Heading>
           {description ? (
-            <Text fontSize="lg" color="gray.600">
+            <Text fontSize="lg" color="academic.secondaryText" fontFamily="body">
               {description}
             </Text>
           ) : null}

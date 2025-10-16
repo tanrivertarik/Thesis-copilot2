@@ -99,97 +99,97 @@ export function SummaryStep() {
   return (
     <PageShell title="Step 3: Review & Generate" description="Confirm your inputs before generating your Constitution.">
       <VStack spacing={10} align="stretch">
-        <Box bg="surface.card" border="1px solid" borderColor="surface.border" borderRadius="lg" p={6}>
+        <Box bg="academic.paper" border="1px solid" borderColor="academic.borderLight" borderRadius="lg" p={6}>
           <VStack align="start" spacing={4}>
             <HStack spacing={2}>
-              <Icon as={CheckIcon} color="brand.400" w={5} h={5} />
-              <Heading size="md">Your Project</Heading>
+              <Icon as={CheckIcon} color="academic.accent" w={5} h={5} />
+              <Heading size="md" fontFamily="heading" color="academic.primaryText">Your Project</Heading>
             </HStack>
             <SimpleGrid columns={{ base: 1, md: 2 }} w="full" spacing={4}>
               <VStack align="start" spacing={1}>
-                <Text fontWeight="semibold" color="brand.200" fontSize="sm">Thesis Title</Text>
-                <Text color="blue.50" fontSize="md">{project?.title || '—'}</Text>
+                <Text fontWeight="semibold" color="academic.secondaryText" fontSize="sm">Thesis Title</Text>
+                <Text color="academic.primaryText" fontSize="md">{project?.title || '—'}</Text>
               </VStack>
               <VStack align="start" spacing={1}>
-                <Text fontWeight="semibold" color="brand.200" fontSize="sm">Citation Style</Text>
-                <Text color="blue.50" fontSize="md">{project?.citationStyle || '—'}</Text>
+                <Text fontWeight="semibold" color="academic.secondaryText" fontSize="sm">Citation Style</Text>
+                <Text color="academic.primaryText" fontSize="md">{project?.citationStyle || '—'}</Text>
               </VStack>
             </SimpleGrid>
             <VStack align="start" w="full" spacing={1}>
-              <Text fontWeight="semibold" color="brand.200" fontSize="sm">Topic Description</Text>
-              <Text color="blue.100" fontSize="sm">{project?.topic || 'No description provided'}</Text>
+              <Text fontWeight="semibold" color="academic.secondaryText" fontSize="sm">Topic Description</Text>
+              <Text color="academic.primaryText" fontSize="sm">{project?.topic || 'No description provided'}</Text>
             </VStack>
             {project?.researchQuestions?.length ? (
               <VStack align="start" w="full" spacing={2}>
-                <Text fontWeight="semibold" color="brand.200" fontSize="sm">Research Questions</Text>
-                <VStack align="start" spacing={1} w="full" pl={3} borderLeft="2px" borderColor="brand.400">
+                <Text fontWeight="semibold" color="academic.secondaryText" fontSize="sm">Research Questions</Text>
+                <VStack align="start" spacing={1} w="full" pl={3} borderLeft="2px" borderColor="academic.accent">
                   {project.researchQuestions.map((question, idx) => (
-                    <Text key={idx} color="blue.100" fontSize="sm">{idx + 1}. {question}</Text>
+                    <Text key={idx} color="academic.primaryText" fontSize="sm">{idx + 1}. {question}</Text>
                   ))}
                 </VStack>
               </VStack>
             ) : null}
-            <Button variant="outline" colorScheme="brand" size="sm" onClick={() => navigate('/onboarding/start')} isDisabled={generating} alignSelf="flex-start">Edit project details</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/onboarding/start')} isDisabled={generating} alignSelf="flex-start">Edit project details</Button>
           </VStack>
         </Box>
 
-        <Box bg="surface.card" border="1px solid" borderColor={ingestionResult ? 'brand.400' : 'surface.border'} borderRadius="lg" p={6}>
+        <Box bg="academic.paper" border="1px solid" borderColor={ingestionResult ? 'academic.accent' : 'academic.borderLight'} borderRadius="lg" p={6}>
           <VStack align="start" spacing={4}>
             <HStack spacing={2}>
-              <Icon as={ingestionResult ? CheckIcon : InfoIcon} color={ingestionResult ? 'brand.400' : 'brand.300'} w={5} h={5} />
-              <Heading size="md">Research Sources</Heading>
+              <Icon as={ingestionResult ? CheckIcon : InfoIcon} color={ingestionResult ? 'academic.accent' : 'academic.secondaryText'} w={5} h={5} />
+              <Heading size="md" fontFamily="heading" color="academic.primaryText">Research Sources</Heading>
             </HStack>
             {ingestionResult ? (
               <VStack align="start" w="full" spacing={3}>
-                <Alert status="success" borderRadius="lg" bg="rgba(34,197,94,0.1)" border="1px solid rgba(34, 197, 94, 0.3)">
-                  <AlertIcon />
+                <Alert status="success" borderRadius="lg" bg="rgba(16, 185, 129, 0.08)" border="1px solid rgba(16, 185, 129, 0.2)">
+                  <AlertIcon color="green.500" />
                   <Stack spacing={0}>
-                    <AlertDescription fontWeight="semibold">✓ Source ingested successfully</AlertDescription>
-                    <Text fontSize="sm" color="green.200">{ingestionResult.chunkCount} chunks created{ingestionResult.summary?.abstract ? ' • Abstract captured' : ''}</Text>
+                    <AlertDescription fontWeight="semibold" color="academic.primaryText">✓ Source ingested successfully</AlertDescription>
+                    <Text fontSize="sm" color="academic.secondaryText">{ingestionResult.chunkCount} chunks created{ingestionResult.summary?.abstract ? ' • Abstract captured' : ''}</Text>
                   </Stack>
                 </Alert>
                 {ingestionResult.summary?.abstract && (
-                  <Box bg="rgba(91, 130, 245, 0.05)" borderRadius="md" p={3} borderLeft="3px solid" borderLeftColor="brand.400">
-                    <Text fontSize="sm" color="blue.100"><strong>Abstract:</strong> {ingestionResult.summary.abstract.substring(0, 200)}{ingestionResult.summary.abstract.length > 200 ? '…' : ''}</Text>
+                  <Box bg="rgba(96, 122, 148, 0.05)" borderRadius="md" p={3} borderLeft="3px solid" borderLeftColor="academic.accent">
+                    <Text fontSize="sm" color="academic.primaryText"><strong>Abstract:</strong> {ingestionResult.summary.abstract.substring(0, 200)}{ingestionResult.summary.abstract.length > 200 ? '…' : ''}</Text>
                   </Box>
                 )}
-                <Button variant="outline" colorScheme="brand" size="sm" onClick={() => { resetIngestion(); navigate('/onboarding/sources'); }} isDisabled={generating}>Add another source</Button>
+                <Button variant="outline" size="sm" onClick={() => { resetIngestion(); navigate('/onboarding/sources'); }} isDisabled={generating}>Add another source</Button>
               </VStack>
             ) : (
               <VStack align="start" w="full" spacing={3}>
-                <Alert status="info" borderRadius="lg" bg="rgba(59,130,246,0.1)" border="1px solid rgba(59, 130, 246, 0.3)">
-                  <AlertIcon />
+                <Alert status="info" borderRadius="lg" bg="rgba(96, 122, 148, 0.08)" border="1px solid rgba(96, 122, 148, 0.2)">
+                  <AlertIcon color="academic.accent" />
                   <Stack spacing={0}>
-                    <AlertDescription fontWeight="semibold">No sources added yet</AlertDescription>
-                    <Text fontSize="sm" color="blue.200">You can proceed without sources, but adding one improves your Constitution.</Text>
+                    <AlertDescription fontWeight="semibold" color="academic.primaryText">No sources added yet</AlertDescription>
+                    <Text fontSize="sm" color="academic.secondaryText">You can proceed without sources, but adding one improves your Constitution.</Text>
                   </Stack>
                 </Alert>
-                <Button variant="outline" colorScheme="brand" size="sm" onClick={() => navigate('/onboarding/sources')} isDisabled={generating}>Add a source now</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('/onboarding/sources')} isDisabled={generating}>Add a source now</Button>
               </VStack>
             )}
           </VStack>
         </Box>
 
-        <Box bg="linear-gradient(135deg, rgba(91, 130, 245, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)" borderRadius="lg" p={6} border="1px solid rgba(95, 130, 245, 0.2)">
+        <Box bg="rgba(96, 122, 148, 0.05)" borderRadius="lg" p={6} border="1px solid" borderColor="academic.borderLight">
           <VStack align="start" spacing={4}>
-            <Heading size="md" color="brand.200">🚀 What happens when you continue?</Heading>
-            <VStack align="start" spacing={2} fontSize="sm" color="blue.100">
-              <HStack><Text>✓ Thesis Copilot analyzes your project details and sources</Text></HStack>
-              <HStack><Text>✓ Generates a custom Thesis Constitution</Text></HStack>
-              <HStack><Text>✓ Creates a chapter-by-chapter outline</Text></HStack>
-              <HStack><Text>✓ Unlocks your workspace for drafting</Text></HStack>
+            <Heading size="md" color="academic.primaryText" fontFamily="heading">What happens when you continue?</Heading>
+            <VStack align="start" spacing={2} fontSize="sm" color="academic.secondaryText">
+              <HStack><Icon as={CheckIcon} color="academic.accent" boxSize="14px" /><Text>Thesis Copilot analyzes your project details and sources</Text></HStack>
+              <HStack><Icon as={CheckIcon} color="academic.accent" boxSize="14px" /><Text>Generates a custom Thesis Constitution</Text></HStack>
+              <HStack><Icon as={CheckIcon} color="academic.accent" boxSize="14px" /><Text>Creates a chapter-by-chapter outline</Text></HStack>
+              <HStack><Icon as={CheckIcon} color="academic.accent" boxSize="14px" /><Text>Unlocks your workspace for drafting</Text></HStack>
             </VStack>
           </VStack>
         </Box>
 
         <Stack direction={{ base: 'column', md: 'row' }} spacing={4} pt={4}>
-          <Button colorScheme="brand" onClick={() => { void handleNext(); }} isLoading={generating} isDisabled={generating} size="lg" boxShadow="0 10px 20px rgba(91, 130, 245, 0.3)">
+          <Button colorScheme="brand" onClick={() => { void handleNext(); }} isLoading={generating} isDisabled={generating} size="lg">
             {generating ? <>
               <Spinner size="sm" mr={2} />
               Generating...
             </> : 'Create Constitution & Continue'}
           </Button>
-          <Button variant="outline" colorScheme="brand" onClick={() => navigate('/onboarding/sources')} isDisabled={generating} size="lg">Back to sources</Button>
+          <Button variant="outline" onClick={() => navigate('/onboarding/sources')} isDisabled={generating} size="lg">Back to sources</Button>
         </Stack>
       </VStack>
     </PageShell>

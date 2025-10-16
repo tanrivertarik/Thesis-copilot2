@@ -77,7 +77,7 @@ function OnboardingScaffold() {
   }, [location.pathname, navigate, navigationHandlers]);
 
   return (
-    <Stack spacing={0} minH="100vh" bg="rgba(10,12,20,0.95)">
+    <Stack spacing={0} minH="100vh" bg="academic.background">
       <OnboardingProgress />
       <Box flex="1" px={{ base: 4, md: 8 }} pb={12}>
         <Outlet />

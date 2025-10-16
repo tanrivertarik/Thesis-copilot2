@@ -6,30 +6,43 @@ const config: ThemeConfig = {
   useSystemColorMode: false
 };
 
+// Academic Blue Color Palette
 const colors = {
+  // Primary Academic Colors
+  academic: {
+    background: '#F8F8F7',      // Light Off-White
+    paper: '#FFFFFF',           // Pure White
+    primaryText: '#2D3748',     // Charcoal
+    secondaryText: '#718096',   // Slate Gray
+    accent: '#607A94',          // Dusty Blue
+    accentHover: '#4F6780',     // Darker Dusty Blue
+    border: '#D1D5DB',          // Light Gray
+    borderLight: '#E5E7EB'      // Very Light Gray
+  },
+  // Keep brand colors for backward compatibility but update values
   brand: {
-    50: '#f0f4ff',
-    100: '#e5ecff',
-    200: '#d0deff',
-    300: '#b0c5ff',
-    400: '#7fa3ff',
-    500: '#5b82f5',
-    600: '#3f52d9',
-    700: '#2d3fb5',
-    800: '#1f2d8b',
-    900: '#162060'
+    50: '#F8F9FB',
+    100: '#E8EDF3',
+    200: '#D1DBEA',
+    300: '#A8BACE',
+    400: '#8099B5',
+    500: '#607A94',
+    600: '#4F6780',
+    700: '#3F5266',
+    800: '#2F3E4D',
+    900: '#1F2933'
   },
   surface: {
-    light: '#ffffff',
-    lighter: '#fafbfc',
-    card: '#f8f9fb',
-    cardHover: '#f0f3f7',
-    border: 'rgba(91, 130, 245, 0.15)',
-    borderLight: 'rgba(91, 130, 245, 0.08)'
+    dark: '#F8F8F7',
+    darker: '#FFFFFF',
+    card: '#FFFFFF',
+    cardHover: '#F8F8F7',
+    border: '#D1D5DB',
+    borderLight: '#E5E7EB'
   },
   accent: {
-    primary: '#5b82f5',
-    secondary: '#8b5cf6',
+    primary: '#607A94',
+    secondary: '#4F6780',
     success: '#10b981',
     warning: '#f59e0b',
     error: '#ef4444'
@@ -41,58 +54,67 @@ const components = {
     baseStyle: {
       fontWeight: 'semibold',
       borderRadius: 'lg',
-      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-      _hover: {
-        transform: 'translateY(-2px)',
-        boxShadow: '0 10px 20px rgba(0, 0, 0, 0.3)'
-      }
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
     },
     variants: {
       solid: {
-        bg: 'linear-gradient(135deg, #5b82f5 0%, #8b5cf6 100%)',
+        bg: 'academic.accent',
         color: 'white',
         _hover: {
-          bg: 'linear-gradient(135deg, #4f6fdc 0%, #7a45d9 100%)',
+          bg: 'academic.accentHover',
+          transform: 'translateY(-1px)',
+          boxShadow: '0 4px 12px rgba(96, 122, 148, 0.25)',
           _disabled: {
-            bg: 'linear-gradient(135deg, #5b82f5 0%, #8b5cf6 100%)'
+            bg: 'academic.accent',
+            transform: 'none'
           }
         }
       },
       outline: {
-        borderColor: 'surface.border',
-        color: 'brand.200',
+        borderColor: 'academic.border',
+        color: 'academic.primaryText',
         _hover: {
-          bg: 'rgba(95, 130, 245, 0.1)',
-          borderColor: 'brand.400'
+          bg: 'rgba(96, 122, 148, 0.05)',
+          borderColor: 'academic.accent'
         }
       },
       ghost: {
-        color: 'blue.200',
+        color: 'academic.secondaryText',
         _hover: {
-          bg: 'rgba(95, 130, 245, 0.1)'
+          bg: 'rgba(96, 122, 148, 0.05)',
+          color: 'academic.accent'
+        }
+      },
+      link: {
+        color: 'academic.secondaryText',
+        fontWeight: 'normal',
+        _hover: {
+          color: 'academic.accent',
+          textDecoration: 'none'
         }
       }
     }
   },
   Input: {
     defaultProps: {
-      focusBorderColor: 'brand.400'
+      focusBorderColor: 'academic.accent'
     },
     variants: {
       outline: {
         field: {
-          bg: 'surface.card',
-          borderColor: 'surface.border',
-          color: 'gray.800',
+          bg: 'academic.paper',
+          borderColor: 'academic.border',
+          color: 'academic.primaryText',
+          transition: 'border-color 0.2s',
           _hover: {
-            borderColor: 'surface.border'
+            borderColor: 'academic.border'
           },
           _focus: {
-            borderColor: 'brand.400',
-            boxShadow: '0 0 0 1px rgba(95, 130, 245, 0.3)'
+            borderColor: 'academic.accent',
+            boxShadow: 'none'
           },
           _placeholder: {
-            color: 'gray.400'
+            color: 'academic.secondaryText'
           }
         }
       }
@@ -100,22 +122,23 @@ const components = {
   },
   Textarea: {
     defaultProps: {
-      focusBorderColor: 'brand.400'
+      focusBorderColor: 'academic.accent'
     },
     variants: {
       outline: {
-        bg: 'surface.card',
-        borderColor: 'surface.border',
-        color: 'gray.800',
+        bg: 'academic.paper',
+        borderColor: 'academic.border',
+        color: 'academic.primaryText',
+        transition: 'border-color 0.2s',
         _hover: {
-          borderColor: 'surface.border'
+          borderColor: 'academic.border'
         },
         _focus: {
-          borderColor: 'brand.400',
-          boxShadow: '0 0 0 1px rgba(95, 130, 245, 0.3)'
+          borderColor: 'academic.accent',
+          boxShadow: 'none'
         },
         _placeholder: {
-          color: 'gray.400'
+          color: 'academic.secondaryText'
         }
       }
     }
@@ -123,48 +146,54 @@ const components = {
   Card: {
     baseStyle: {
       container: {
-        bg: 'surface.card',
-        borderColor: 'surface.border',
+        bg: 'academic.paper',
+        borderColor: 'academic.border',
         _hover: {
-          borderColor: 'surface.border',
-          bg: 'surface.cardHover',
+          borderColor: 'academic.border',
+          bg: 'academic.paper',
           transition: 'all 0.2s'
         }
       }
+    }
+  },
+  FormLabel: {
+    baseStyle: {
+      color: 'academic.primaryText',
+      fontWeight: 'medium'
     }
   }
 };
 
 const fonts = {
-  heading: "'Inter', system-ui, sans-serif",
+  heading: "'Lora', 'Georgia', serif",
   body: "'Inter', system-ui, sans-serif"
 };
 
 const styles = {
   global: {
     body: {
-      bg: 'linear-gradient(135deg, #ffffff 0%, #fafbfc 100%)',
-      color: 'gray.800'
+      bg: 'academic.background',
+      color: 'academic.primaryText'
     },
     html: {
       scrollBehavior: 'smooth'
     },
     '::selection': {
-      bg: 'brand.100',
-      color: 'brand.900'
+      bg: 'academic.accent',
+      color: 'white'
     },
     '::-webkit-scrollbar': {
       width: '8px',
       height: '8px'
     },
     '::-webkit-scrollbar-track': {
-      bg: 'surface.light'
+      bg: 'academic.borderLight'
     },
     '::-webkit-scrollbar-thumb': {
-      bg: 'brand.300',
+      bg: 'academic.accent',
       borderRadius: 'md',
       _hover: {
-        bg: 'brand.400'
+        bg: 'academic.accentHover'
       }
     }
   }
@@ -173,12 +202,12 @@ const styles = {
 const semanticTokens = {
   colors: {
     surface: {
-      default: '#f8f9fb',
-      _light: '#f8f9fb'
+      default: '#FFFFFF',
+      _light: '#FFFFFF'
     },
     surfaceAccent: {
-      default: 'rgba(95, 130, 245, 0.06)',
-      _light: 'rgba(95, 130, 245, 0.06)'
+      default: 'rgba(96, 122, 148, 0.08)',
+      _light: 'rgba(96, 122, 148, 0.08)'
     }
   }
 };
@@ -191,8 +220,9 @@ export const theme = extendTheme({
   styles,
   semanticTokens,
   shadows: {
-    glow: '0 0 30px rgba(95, 130, 245, 0.2)',
-    elevated: '0 20px 40px rgba(0, 0, 0, 0.3)',
-    card: '0 10px 30px rgba(0, 0, 0, 0.2)'
+    glow: '0 0 20px rgba(96, 122, 148, 0.15)',
+    elevated: '0 4px 12px rgba(0, 0, 0, 0.05)',
+    card: '0 2px 8px rgba(0, 0, 0, 0.04)',
+    soft: '0 4px 12px rgba(0, 0, 0, 0.05)'
   }
 });

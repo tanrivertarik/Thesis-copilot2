@@ -92,15 +92,16 @@ export function OnboardingOverview() {
       <VStack spacing={12} align="stretch">
         {/* Intro Section */}
         <Box
-          bg="linear-gradient(135deg, rgba(91, 130, 245, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)"
-          borderRadius="xl"
+          bg="rgba(96, 122, 148, 0.05)"
+          borderRadius="lg"
           p={8}
-          border="1px solid rgba(91, 130, 245, 0.1)"
+          border="1px solid"
+          borderColor="academic.borderLight"
         >
           <VStack spacing={4} align="start">
             <VStack spacing={2} align="start">
-              <Heading size="md" color="gray.900">What is a Thesis Constitution?</Heading>
-              <Text color="gray.600" fontSize="sm">
+              <Heading size="md" fontFamily="heading" color="academic.primaryText">What is a Thesis Constitution?</Heading>
+              <Text color="academic.secondaryText" fontSize="sm">
                 Your Constitution is your project&apos;s blueprint. It includes your research scope, core
                 argument, academic tone guidelines, and a flexible outline. This roadmap guides every step
                 of your writing process.
@@ -108,14 +109,26 @@ export function OnboardingOverview() {
             </VStack>
 
             <VStack spacing={2} align="start" pt={2}>
-              <Text fontWeight="bold" color="brand.600" fontSize="sm">
+              <Text fontWeight="semibold" color="academic.primaryText" fontSize="sm">
                 Your Constitution will contain:
               </Text>
-              <Stack spacing={1} pl={4} fontSize="sm" color="gray.700">
-                <Text>✓ Research scope and boundaries</Text>
-                <Text>✓ Your core argument / hypothesis</Text>
-                <Text>✓ Academic tone and style guidelines</Text>
-                <Text>✓ Chapter-by-chapter outline</Text>
+              <Stack spacing={1} pl={4} fontSize="sm" color="academic.secondaryText">
+                <Flex align="center" gap={2}>
+                  <Icon as={CheckCircleIcon} color="academic.accent" boxSize="14px" />
+                  <Text>Research scope and boundaries</Text>
+                </Flex>
+                <Flex align="center" gap={2}>
+                  <Icon as={CheckCircleIcon} color="academic.accent" boxSize="14px" />
+                  <Text>Your core argument / hypothesis</Text>
+                </Flex>
+                <Flex align="center" gap={2}>
+                  <Icon as={CheckCircleIcon} color="academic.accent" boxSize="14px" />
+                  <Text>Academic tone and style guidelines</Text>
+                </Flex>
+                <Flex align="center" gap={2}>
+                  <Icon as={CheckCircleIcon} color="academic.accent" boxSize="14px" />
+                  <Text>Chapter-by-chapter outline</Text>
+                </Flex>
               </Stack>
             </VStack>
           </VStack>
@@ -124,8 +137,8 @@ export function OnboardingOverview() {
         {/* Steps Timeline */}
         <VStack spacing={4} align="stretch">
           <VStack spacing={1}>
-            <Heading size="md" color="gray.900">Complete These 3 Steps</Heading>
-            <Text color="gray.600" fontSize="sm">
+            <Heading size="md" fontFamily="heading" color="academic.primaryText">Complete These 3 Steps</Heading>
+            <Text color="academic.secondaryText" fontSize="sm">
               The whole process takes about 10-15 minutes
             </Text>
           </VStack>
@@ -139,16 +152,16 @@ export function OnboardingOverview() {
               return (
                 <VStack key={step.number} align="stretch" spacing={0}>
                   <Flex
-                    bg="white"
-                    border="2px solid"
-                    borderColor={step.status === 'complete' ? 'brand.400' : 'surface.border'}
+                    bg="academic.paper"
+                    border="1px solid"
+                    borderColor={step.status === 'complete' ? 'academic.accent' : 'academic.border'}
                     borderRadius="lg"
                     p={6}
                     transition="all 0.2s"
                     cursor="pointer"
                     _hover={{
-                      borderColor: 'brand.400',
-                      bg: 'surface.cardHover'
+                      borderColor: 'academic.accent',
+                      boxShadow: 'soft'
                     }}
                     onClick={() => {
                       if (step.status !== 'complete' && idx === 0) {
@@ -165,15 +178,15 @@ export function OnboardingOverview() {
                       h={14}
                       minW={14}
                       borderRadius="lg"
-                      bgGradient={`linear(to-br, ${statusColor}.500, ${statusColor}.600)`}
+                      bg={step.status === 'complete' ? 'academic.accent' : 'academic.borderLight'}
                       mr={6}
                     >
-                      <Icon as={StatusIcon} color="white" w={6} h={6} />
+                      <Icon as={StatusIcon} color={step.status === 'complete' ? 'white' : 'academic.secondaryText'} w={6} h={6} />
                     </Flex>
 
                     <VStack align="start" spacing={1} flex={1}>
                       <Flex align="center" gap={2}>
-                        <Heading size="sm" color="gray.900">Step {step.number}: {step.title}</Heading>
+                        <Heading size="sm" fontFamily="heading" color="academic.primaryText">Step {step.number}: {step.title}</Heading>
                         <Badge
                           colorScheme={getStatusColor(step.status)}
                           variant="subtle"
@@ -182,7 +195,7 @@ export function OnboardingOverview() {
                           {step.status === 'complete' ? 'Done' : step.duration}
                         </Badge>
                       </Flex>
-                      <Text color="gray.600" fontSize="sm">
+                      <Text color="academic.secondaryText" fontSize="sm">
                         {step.description}
                       </Text>
                     </VStack>
@@ -190,7 +203,7 @@ export function OnboardingOverview() {
                     {step.status !== 'complete' && (
                       <Icon
                         as={CheckCircleIcon}
-                        color="brand.400"
+                        color="academic.accent"
                         w={5}
                         h={5}
                         ml={4}
@@ -201,11 +214,10 @@ export function OnboardingOverview() {
 
                   {!isLast && (
                     <Box
-                      w="2px"
+                      w="1px"
                       h={4}
-                      bg="surface.border"
+                      bg="academic.borderLight"
                       mx="auto"
-                      borderRadius="full"
                     />
                   )}
                 </VStack>
@@ -220,13 +232,11 @@ export function OnboardingOverview() {
             colorScheme="brand"
             size="lg"
             onClick={() => navigate('/onboarding/start')}
-            boxShadow="0 10px 20px rgba(91, 130, 245, 0.3)"
           >
             Start questionnaire
           </Button>
           <Button
             variant="outline"
-            colorScheme="brand"
             size="lg"
             onClick={() => navigate('/workspace')}
           >
@@ -235,8 +245,8 @@ export function OnboardingOverview() {
         </Stack>
 
         {/* Footer Note */}
-        <Text fontSize="sm" color="gray.600" pt={4}>
-          💡 Tip: You can update your project details and Constitution anytime from your workspace.
+        <Text fontSize="sm" color="academic.secondaryText" pt={4} fontStyle="italic">
+          Tip: You can update your project details and Constitution anytime from your workspace.
         </Text>
       </VStack>
     </PageShell>

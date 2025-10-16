@@ -18,7 +18,7 @@ export function AppLayout() {
   return (
     <Box
       minH="100vh"
-      bgGradient="radial(surface, #020617)"
+      bg="academic.background"
       display="flex"
       alignItems="stretch"
     >
@@ -27,33 +27,39 @@ export function AppLayout() {
           align="center"
           justify="space-between"
           mb={{ base: 8, md: 12 }}
-          border="1px solid rgba(63,131,248,0.25)"
-          borderRadius="xl"
           px={{ base: 4, md: 6 }}
           py={{ base: 3, md: 4 }}
-          bg="rgba(15,23,42,0.75)"
+          bg="transparent"
         >
-          <Heading size="md" color="blue.100">
+          <Heading 
+            size="md" 
+            color="academic.primaryText"
+            fontFamily="heading"
+            fontWeight="bold"
+          >
             Thesis Copilot
           </Heading>
           {loading ? (
-            <Spinner color="blue.300" size="sm" />
+            <Spinner color="academic.accent" size="sm" />
           ) : user ? (
-            <HStack spacing={4} color="blue.100">
-              <Badge colorScheme="green" borderRadius="full" px={3} py={1} fontSize="0.75rem">
-                Signed in
-              </Badge>
-              <Text fontSize="sm">{user.email ?? user.uid}</Text>
-              <Button variant="outline" size="sm" onClick={signOutUser} colorScheme="blue">
+            <HStack spacing={4}>
+              <Text fontSize="sm" color="academic.secondaryText" fontFamily="body">
+                {user.email ?? user.uid}
+              </Text>
+              <Button 
+                variant="link" 
+                size="sm" 
+                onClick={signOutUser}
+                color="academic.secondaryText"
+                _hover={{ color: 'academic.accent' }}
+                fontFamily="body"
+              >
                 Sign out
               </Button>
             </HStack>
           ) : (
             <HStack spacing={3}>
-              <Badge colorScheme="yellow" borderRadius="full" px={3} py={1} fontSize="0.75rem">
-                Guest
-              </Badge>
-              <Button as={RouterLink} to="/login" colorScheme="blue" size="sm">
+              <Button as={RouterLink} to="/login" colorScheme="brand" size="sm">
                 Sign in
               </Button>
             </HStack>
