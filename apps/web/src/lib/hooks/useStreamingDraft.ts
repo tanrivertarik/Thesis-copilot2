@@ -21,6 +21,11 @@ export function useStreamingDraft({ onToken, onComplete, onError }: UseStreaming
 
   const generateDraftStreaming = useCallback(
     async (request: SectionDraftRequest) => {
+      console.log('[useStreamingDraft] Starting draft generation', {
+        projectId: request.projectId,
+        sectionId: request.sectionId
+      });
+
       setIsGenerating(true);
       setGeneratedText('');
       setError(null);
@@ -30,9 +35,11 @@ export function useStreamingDraft({ onToken, onComplete, onError }: UseStreaming
       try {
         const token = await getIdToken();
         if (!token) {
+          console.error('[useStreamingDraft] No authentication token available');
           throw new Error('Not authenticated');
         }
 
+        console.log('[useStreamingDraft] Making fetch request to streaming endpoint');
         const response = await fetch(`${env.apiBaseUrl}/api/drafting/section/stream`, {
           method: 'POST',
           headers: {
@@ -43,22 +50,31 @@ export function useStreamingDraft({ onToken, onComplete, onError }: UseStreaming
         });
 
         if (!response.ok) {
-          throw new Error(`API ${response.status}: ${await response.text()}`);
+          const errorText = await response.text();
+          console.error('[useStreamingDraft] API request failed', {
+            status: response.status,
+            error: errorText
+          });
+          throw new Error(`API ${response.status}: ${errorText}`);
         }
 
         if (!response.body) {
+          console.error('[useStreamingDraft] No response body from API');
           throw new Error('No response body');
         }
 
+        console.log('[useStreamingDraft] Stream started, processing events...');
         // Process SSE stream
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        let tokenCount = 0;
 
         while (true) {
           const { done, value } = await reader.read();
 
           if (done) {
+            console.log('[useStreamingDraft] Stream completed', { totalTokens: tokenCount });
             break;
           }
 
@@ -76,17 +92,20 @@ export function useStreamingDraft({ onToken, onComplete, onError }: UseStreaming
                 const event = JSON.parse(data) as StreamEvent;
 
                 if (event.type === 'token') {
+                  tokenCount++;
                   accumulatedText += event.content;
                   setGeneratedText(accumulatedText);
                   onToken?.(event.content);
                 } else if (event.type === 'error') {
+                  console.error('[useStreamingDraft] Stream error event received', event.message);
                   setError(event.message);
                   onError?.(event.message);
                 } else if (event.type === 'done') {
+                  console.log('[useStreamingDraft] Stream done event received');
                   onComplete?.(accumulatedText);
                 }
               } catch (err) {
-                console.error('Failed to parse SSE event:', err);
+                console.error('[useStreamingDraft] Failed to parse SSE event:', err);
               }
             }
           }

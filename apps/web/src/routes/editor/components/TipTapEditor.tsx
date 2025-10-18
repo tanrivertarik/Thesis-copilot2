@@ -110,14 +110,20 @@ export function TipTapEditor({
           '.thesis-editor-content': {
             minHeight: '500px',
             outline: 'none',
-            
+            color: 'black', // Ensure text is black
+
             '&:focus': {
               outline: 'none'
             },
-            
-            // Inherit all the styling from DocumentPage
+
+            // Inherit all the styling from DocumentPage and ensure black text
             '& > *': {
-              outline: 'none'
+              outline: 'none',
+              color: 'inherit'
+            },
+
+            '& p': {
+              color: 'black'
             }
           }
         }}

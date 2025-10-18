@@ -11,7 +11,9 @@ draftsRouter.get(
   asyncHandler(async (req: AuthedRequest, res: Response) => {
     const draft = await getDraft(req.user.id, req.params.projectId, req.params.sectionId);
     if (!draft) {
-      throw new HttpError(404, 'Draft not found');
+      // Return null instead of throwing error - this is expected for new sections
+      res.json({ data: null });
+      return;
     }
     res.json({ data: draft });
   })

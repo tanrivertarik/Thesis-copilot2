@@ -78,6 +78,77 @@ export const RewriteDraftResponseSchema = z.object({
   latencyMs: z.number().nonnegative()
 });
 
+// AI Command Processing (Tool Calling)
+export const EditOperationSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('insert'),
+    position: z.enum(['start', 'end', 'cursor']),
+    content: z.string(),
+    reason: z.string().optional()
+  }),
+  z.object({
+    type: z.literal('replace'),
+    from: z.number().nonnegative(),
+    to: z.number().nonnegative(),
+    content: z.string(),
+    originalContent: z.string().optional(),
+    reason: z.string().optional()
+  }),
+  z.object({
+    type: z.literal('delete'),
+    from: z.number().nonnegative(),
+    to: z.number().nonnegative(),
+    deletedContent: z.string().optional(),
+    reason: z.string().optional()
+  }),
+  z.object({
+    type: z.literal('rewrite'),
+    target: z.enum(['paragraph', 'section', 'selection']),
+    content: z.string(),
+    reason: z.string().optional()
+  })
+]);
+
+export const AICommandRequestSchema = z.object({
+  projectId: IdSchema,
+  sectionId: IdSchema,
+  command: z.string(),
+  currentHtml: z.string(),
+  selectionRange: z
+    .object({
+      from: z.number().nonnegative(),
+      to: z.number().nonnegative()
+    })
+    .optional(),
+  thesisSummary: z
+    .object({
+      scope: z.string().optional(),
+      toneGuidelines: z.string().optional(),
+      coreArgument: z.string().optional()
+    })
+    .optional(),
+  citations: z.array(DraftCitationSchema).default([]),
+  maxTokens: z.number().int().positive().max(1024).default(500)
+});
+
+export const AICommandResponseSchema = z.object({
+  operation: EditOperationSchema,
+  preview: z.string().optional(), // HTML preview of the change
+  reasoning: z.string(),
+  tokenUsage: z
+    .object({
+      promptTokens: z.number().optional(),
+      completionTokens: z.number().optional(),
+      totalTokens: z.number().optional()
+    })
+    .optional(),
+  latencyMs: z.number().nonnegative()
+});
+
+export type EditOperation = z.infer<typeof EditOperationSchema>;
+export type AICommandRequest = z.infer<typeof AICommandRequestSchema>;
+export type AICommandResponse = z.infer<typeof AICommandResponseSchema>;
+
 export type SectionDraftRequest = z.infer<typeof SectionDraftRequestSchema>;
 export type SectionDraftResponse = z.infer<typeof SectionDraftResponseSchema>;
 export type RewriteDraftRequest = z.infer<typeof RewriteDraftRequestSchema>;

@@ -13,7 +13,9 @@ import type {
   Source,
   SourceCreateInput,
   SourceIngestionResult,
-  ThesisConstitution
+  ThesisConstitution,
+  AICommandRequest,
+  AICommandResponse
 } from '@thesis-copilot/shared';
 import { env } from './env';
 import { getIdToken } from './auth-token';
@@ -175,6 +177,15 @@ export async function requestParagraphRewrite(
   });
 }
 
+export async function processAICommand(
+  payload: AICommandRequest
+): Promise<AICommandResponse> {
+  return request<AICommandResponse>('/api/drafting/command', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
 export type AcademicLevel = 'UNDERGRADUATE' | 'MASTERS' | 'PHD';
 
 export type ConstitutionGenerationPayload = {
@@ -217,4 +228,81 @@ export async function fetchConstitutionSuggestions(
   projectId: string
 ): Promise<ConstitutionSuggestions> {
   return request<ConstitutionSuggestions>(`/api/projects/${projectId}/constitution/suggestions`);
+}
+
+/**
+ * Download section as DOCX file
+ */
+export async function downloadSectionDocx(projectId: string, sectionId: string): Promise<void> {
+  const token = await getIdToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/projects/${projectId}/sections/${sectionId}/export`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Export failed: ${message}`);
+  }
+
+  // Get filename from Content-Disposition header or use default
+  const contentDisposition = response.headers.get('Content-Disposition');
+  const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+  const filename = filenameMatch ? filenameMatch[1] : 'section.docx';
+
+  // Create blob and trigger download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Download entire project as DOCX file
+ */
+export async function downloadProjectDocx(projectId: string): Promise<void> {
+  const token = await getIdToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/export`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Export failed: ${message}`);
+  }
+
+  // Get filename from Content-Disposition header or use default
+  const contentDisposition = response.headers.get('Content-Disposition');
+  const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+  const filename = filenameMatch ? filenameMatch[1] : 'thesis.docx';
+
+  // Create blob and trigger download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
 }

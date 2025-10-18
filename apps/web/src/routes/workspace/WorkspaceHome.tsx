@@ -533,59 +533,14 @@ export function WorkspaceHome() {
       return;
     }
 
-    setGeneratingInitialDraft(true);
-    setInfoMessage(null);
-
-    try {
-      // First, retrieve relevant evidence from sources
-      const retrieval = await submitRetrieval({
-        projectId: project.id,
-        sectionId: selectedSection.id,
-        query: selectedSection.objective,
-        limit: 5
-      });
-
-      if (retrieval.chunks.length === 0) {
-        toast({
-          status: 'warning',
-          title: 'No evidence found',
-          description: 'Upload and ingest more sources before generating a draft.'
-        });
-        setGeneratingInitialDraft(false);
-        return;
-      }
-
-      // Generate the initial draft using streaming AI
-      await generateDraftStreaming({
-        projectId: project.id,
-        sectionId: selectedSection.id,
-        section: selectedSection,
-        thesisSummary: {
-          scope: project.constitution?.scope,
-          toneGuidelines: project.constitution?.toneGuidelines,
-          coreArgument: project.constitution?.coreArgument
-        },
-        citationStyle: project.citationStyle,
-        chunks: retrieval.chunks.slice(0, 4).map((chunk) => ({
-          id: chunk.id,
-          sourceId: chunk.sourceId,
-          projectId: chunk.projectId,
-          text: chunk.text,
-          metadata: chunk.metadata
-        })),
-        maxTokens: 600
-      });
-    } catch (error) {
-      const message = (error as Error).message;
-      toast({
-        status: 'error',
-        title: 'Draft generation failed',
-        description: message
-      });
-    } finally {
-      setGeneratingInitialDraft(false);
-    }
-  }, [project, selectedSection, toast, generateDraftStreaming]);
+    // Simply navigate to the editor - it will show an empty page
+    // and the user can trigger generation from there
+    navigate(
+      `/workspace/drafting?projectId=${encodeURIComponent(project.id)}&sectionId=${encodeURIComponent(
+        selectedSection.id
+      )}`
+    );
+  }, [project, selectedSection, navigate]);
 
   if (loadingProject) {
     return (
@@ -773,9 +728,7 @@ export function WorkspaceHome() {
                   <Button
                     colorScheme="blue"
                     onClick={() => void handleStartDrafting()}
-                    isDisabled={!hasReadySources || generatingInitialDraft}
-                    isLoading={generatingInitialDraft}
-                    loadingText="Generating draft..."
+                    isDisabled={!hasReadySources}
                   >
                     Start drafting
                   </Button>

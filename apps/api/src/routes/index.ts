@@ -6,6 +6,7 @@ import { draftingRouter } from './drafting.js';
 import { draftingStreamRouter } from './drafting-stream.js';
 import { draftsRouter } from './drafts.js';
 import { constitutionRouter } from './constitution.js';
+import { exportRouter } from './export.js';
 
 export function registerRoutes(app: Express) {
   app.get('/', (_req, res) => {
@@ -22,4 +23,5 @@ export function registerRoutes(app: Express) {
   app.use('/api', draftingStreamRouter);
   app.use('/api', draftsRouter);
   app.use('/api/projects', constitutionRouter);
+  app.use('/api', exportRouter);
 }

@@ -34,8 +34,7 @@ type DraftContextValue = {
 
 const DraftContext = createContext<DraftContextValue | undefined>(undefined);
 
-const FALLBACK_HTML =
-  '<p>Start drafting this section by weaving evidence-backed claims and preserving your [CITE:sourceId] references.</p>';
+const FALLBACK_HTML = '<p></p>';
 
 type DraftProviderProps = {
   projectId: string | null;
@@ -197,6 +196,7 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
       setHtmlState('');
       setCitationsState([]);
       setAnnotationsState([]);
+      setIsLoading(false); // Don't show loading when no project/section
       return;
     }
 
@@ -204,8 +204,22 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
 
     const loadDraft = async () => {
       setIsLoading(true);
+      console.log('[EditorContext] Loading draft:', { projectId, sectionId });
+
+      // Set a timeout to show error if loading takes too long
+      const timeoutId = setTimeout(() => {
+        if (!cancelled && mountedRef.current) {
+          console.error('[EditorContext] Loading timeout - backend might not be running');
+          setError('Loading timeout. Please check that your backend API is running on port 3001.');
+          setIsLoading(false);
+        }
+      }, 10000); // 10 second timeout
+
       try {
         const draft = await fetchDraft(projectId, sectionId);
+        clearTimeout(timeoutId); // Clear timeout on success
+        console.log('[EditorContext] Draft fetched:', draft);
+        
         if (cancelled || !mountedRef.current) {
           return;
         }
@@ -213,6 +227,12 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
         const initialHtml = draft?.html ?? FALLBACK_HTML;
         const initialCitations = draft?.citations ?? [];
         const initialAnnotations = draft?.annotations ?? [];
+
+        console.log('[EditorContext] Setting states with:', {
+          initialHtml,
+          htmlLength: initialHtml.length,
+          draftExists: !!draft
+        });
 
         setHtmlState(initialHtml);
         setCitationsState(initialCitations);
@@ -235,13 +255,31 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
         pendingSnapshotRef.current = snapshot;
         setHasUnsavedChanges(false);
       } catch (err) {
+        clearTimeout(timeoutId); // Clear timeout on error
+        console.error('[EditorContext] Error loading draft:', err);
         if (!cancelled && mountedRef.current) {
-          setError((err as Error).message);
+          const errorMessage = (err as Error).message;
+          // Improve error messages for common issues
+          if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+            setError('Cannot connect to backend. Please ensure the API server is running on port 3001.');
+          } else {
+            setError(errorMessage);
+          }
         }
       } finally {
-        if (!cancelled && mountedRef.current) {
+        console.log('[EditorContext] Finally block executing', {
+          cancelled,
+          mountedRef: mountedRef.current
+        });
+        // Always set isLoading to false, even if unmounting
+        // This ensures the state is correct if component remounts
+        if (!cancelled) {
+          console.log('[EditorContext] Setting isLoading to false');
           setIsLoading(false);
           setAutosaveReady(true);
+          console.log('[EditorContext] Called setIsLoading(false)');
+        } else {
+          console.log('[EditorContext] Skipped because cancelled=true');
         }
       }
     };

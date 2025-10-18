@@ -1,8 +1,16 @@
 import { Router, type Response } from 'express';
-import { SectionDraftRequestSchema, RewriteDraftRequestSchema } from '@thesis-copilot/shared';
+import {
+  SectionDraftRequestSchema,
+  RewriteDraftRequestSchema,
+  AICommandRequestSchema
+} from '@thesis-copilot/shared';
 import { asyncHandler, HttpError } from '../utils/http.js';
 import type { AuthedRequest } from '../types.js';
-import { generateSectionDraft, generateParagraphRewrite } from '../services/drafting-service.js';
+import {
+  generateSectionDraft,
+  generateParagraphRewrite,
+  processAICommand
+} from '../services/drafting-service.js';
 
 export const draftingRouter = Router();
 
@@ -36,5 +44,18 @@ draftingRouter.post(
       }
       throw error;
     }
+  })
+);
+
+draftingRouter.post(
+  '/drafting/command',
+  asyncHandler(async (req: AuthedRequest, res: Response) => {
+    const parsed = AICommandRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new HttpError(400, parsed.error.message);
+    }
+
+    const result = await processAICommand(req.user.id, parsed.data);
+    res.json({ data: result });
   })
 );
