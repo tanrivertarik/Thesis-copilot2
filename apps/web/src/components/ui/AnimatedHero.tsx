@@ -27,34 +27,16 @@ function AnimatedHero() {
   }, [titleNumber, titles]);
 
   return (
-    <Box w="full" bg="academic.background" pt={{ base: 4, md: 24 }}>
+    <Box w="full" bg="academic.background" pt={0}>
       <Container maxW="container.xl">
         <VStack
-          gap={8}
+          gap={2}
           py={{ base: 16, lg: 32 }}
           align="center"
           justify="center"
         >
           {/* Badge */}
-          <Box>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              bg="rgba(96, 122, 148, 0.08)"
-              border="1px solid"
-              borderColor="academic.border"
-              color="academic.accent"
-              _hover={{
-                bg: "rgba(96, 122, 148, 0.12)",
-                borderColor: "academic.accent"
-              }}
-              rightIcon={<MoveRight size={14} />}
-              as={RouterLink}
-              to="#features"
-            >
-              AI-Powered Academic Writing
-            </Button>
-          </Box>
+          
 
           {/* Animated Heading */}
           <VStack gap={4}>
@@ -66,6 +48,7 @@ function AnimatedHero() {
               fontFamily="Lora"
               fontWeight="normal"
               lineHeight="1.1"
+              
             >
               <Text as="span" color="academic.accent">
                 Your thesis writing is

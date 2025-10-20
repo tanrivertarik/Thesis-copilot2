@@ -20,6 +20,7 @@ import { CitationSidebar } from './components/CitationSidebar';
 import { DraftProvider, useDraft } from './components/EditorContext';
 import { DocumentPage } from './components/DocumentPage';
 import { AIChatPanel, type ChatMessage } from './components/AIChatPanel';
+import { DiffPreviewModal } from './components/DiffPreviewModal';
 import {
   requestParagraphRewrite,
   submitRetrieval,
@@ -28,7 +29,8 @@ import {
   processAICommand
 } from '../../lib/api';
 import { useStreamingDraft } from '../../lib/hooks/useStreamingDraft';
-import type { Project, ThesisSection } from '@thesis-copilot/shared';
+import type { Project, ThesisSection, EditOperation } from '@thesis-copilot/shared';
+import { applyDiffMarks } from '../../lib/diff-utils';
 
 type ParagraphInfo = {
   index: number;
@@ -347,6 +349,19 @@ function EditorInnerShell() {
   const [isExporting, setIsExporting] = useState(false);
   const prevLoadingRef = useRef(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [diffPreview, setDiffPreview] = useState<{
+    isOpen: boolean;
+    operation: EditOperation | null;
+    originalHtml: string;
+    previewHtml: string;
+    reasoning: string;
+  }>({
+    isOpen: false,
+    operation: null,
+    originalHtml: '',
+    previewHtml: '',
+    reasoning: ''
+  });
 
   // Initialize streaming hook first (before useEffects that use it)
   const { generateDraftStreaming } = useStreamingDraft({
@@ -1123,40 +1138,39 @@ function EditorInnerShell() {
           return updated;
         });
 
-        // TODO: Show diff preview before applying
-        // For now, apply the edit directly
+        // Show diff preview modal
         const operation = response.operation;
+        let originalHtml = '';
+        let previewHtml = '';
 
         if (operation.type === 'insert') {
-          if (operation.position === 'end') {
-            editor.chain().focus('end').insertContent(operation.content).run();
-          } else if (operation.position === 'start') {
-            editor.chain().focus('start').insertContent(operation.content).run();
-          } else {
-            // cursor position
-            editor.chain().focus().insertContent(operation.content).run();
-          }
+          originalHtml = currentHtml;
+          previewHtml = operation.content;
         } else if (operation.type === 'replace') {
-          editor
-            .chain()
-            .focus()
-            .insertContentAt({ from: operation.from, to: operation.to }, operation.content)
-            .run();
+          const contentBeforeReplace = currentHtml.substring(0, operation.from);
+          const contentAfterReplace = currentHtml.substring(operation.to);
+          originalHtml = operation.originalContent || currentHtml.substring(operation.from, operation.to);
+
+          // Generate diff preview
+          const { diffHtml } = applyDiffMarks(originalHtml, operation.content);
+          previewHtml = contentBeforeReplace + diffHtml + contentAfterReplace;
         } else if (operation.type === 'delete') {
-          editor.chain().focus().deleteRange({ from: operation.from, to: operation.to }).run();
+          originalHtml = operation.deletedContent || currentHtml;
+          const { diffHtml } = applyDiffMarks(originalHtml, '');
+          previewHtml = diffHtml;
         } else if (operation.type === 'rewrite') {
-          // For rewrite, replace all content
-          editor.commands.setContent(operation.content);
+          originalHtml = currentHtml;
+          const { diffHtml } = applyDiffMarks(currentHtml, operation.content);
+          previewHtml = diffHtml;
         }
 
-        // Update context HTML
-        setHtml(editor.getHTML());
-
-        toast({
-          status: 'success',
-          title: 'Command applied',
-          description: operation.reason || 'Edit completed',
-          duration: 3000
+        // Open diff preview modal
+        setDiffPreview({
+          isOpen: true,
+          operation,
+          originalHtml,
+          previewHtml,
+          reasoning: response.reasoning
         });
       } catch (error) {
         // Update chat with error
@@ -1180,6 +1194,74 @@ function EditorInnerShell() {
     },
     [projectId, sectionId, project, editor, citations, setHtml, toast]
   );
+
+  const handleApplyDiff = useCallback(() => {
+    if (!editor || !diffPreview.operation) {
+      return;
+    }
+
+    const operation = diffPreview.operation;
+
+    try {
+      if (operation.type === 'insert') {
+        if (operation.position === 'end') {
+          editor.chain().focus('end').insertContent(operation.content).run();
+        } else if (operation.position === 'start') {
+          editor.chain().focus('start').insertContent(operation.content).run();
+        } else {
+          // cursor position
+          editor.chain().focus().insertContent(operation.content).run();
+        }
+      } else if (operation.type === 'replace') {
+        editor
+          .chain()
+          .focus()
+          .insertContentAt({ from: operation.from, to: operation.to }, operation.content)
+          .run();
+      } else if (operation.type === 'delete') {
+        editor.chain().focus().deleteRange({ from: operation.from, to: operation.to }).run();
+      } else if (operation.type === 'rewrite') {
+        // For rewrite, replace all content
+        editor.commands.setContent(operation.content);
+      }
+
+      // Update context HTML
+      setHtml(editor.getHTML());
+
+      // Close modal
+      setDiffPreview({
+        isOpen: false,
+        operation: null,
+        originalHtml: '',
+        previewHtml: '',
+        reasoning: ''
+      });
+
+      toast({
+        status: 'success',
+        title: 'Changes applied',
+        description: operation.reason || 'Edit completed successfully',
+        duration: 3000
+      });
+    } catch (error) {
+      toast({
+        status: 'error',
+        title: 'Failed to apply changes',
+        description: (error as Error).message,
+        duration: 5000
+      });
+    }
+  }, [editor, diffPreview.operation, setHtml, toast]);
+
+  const handleCloseDiff = useCallback(() => {
+    setDiffPreview({
+      isOpen: false,
+      operation: null,
+      originalHtml: '',
+      previewHtml: '',
+      reasoning: ''
+    });
+  }, []);
 
   return (
     <PageShell
@@ -1224,6 +1306,19 @@ function EditorInnerShell() {
         chatMessages={chatMessages}
         onSendCommand={handleSendCommand}
       />
+
+      {/* Diff Preview Modal */}
+      {diffPreview.operation && (
+        <DiffPreviewModal
+          isOpen={diffPreview.isOpen}
+          onClose={handleCloseDiff}
+          onApply={handleApplyDiff}
+          originalHtml={diffPreview.originalHtml}
+          previewHtml={diffPreview.previewHtml}
+          reasoning={diffPreview.reasoning}
+          operationType={diffPreview.operation.type}
+        />
+      )}
     </PageShell>
   );
 }

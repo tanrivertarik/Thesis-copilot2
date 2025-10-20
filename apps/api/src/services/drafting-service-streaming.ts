@@ -119,7 +119,7 @@ Instructions:
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        temperature: 0.35,
+        temperature: 0.7,
         max_tokens: request.maxTokens ?? 600,
         stream: true, // Enable streaming
         messages: [

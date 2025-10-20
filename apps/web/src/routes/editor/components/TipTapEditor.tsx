@@ -14,6 +14,7 @@ import {
 } from '@chakra-ui/react';
 import { useEffect } from 'react';
 import { CitationHighlightExtension } from './extensions/CitationHighlight';
+import { DiffAdditionMark, DiffDeletionMark } from './extensions/DiffHighlight';
 
 const StarterKit = StarterKitExtension;
 
@@ -31,7 +32,12 @@ export function TipTapEditor({
   onEditorReady
 }: TipTapEditorProps) {
   const editor = useEditor({
-    extensions: [StarterKit, CitationHighlightExtension],
+    extensions: [
+      StarterKit,
+      CitationHighlightExtension,
+      DiffAdditionMark,
+      DiffDeletionMark
+    ],
     content,
     onUpdate: ({ editor }) => {
       onUpdate?.(editor.getHTML());

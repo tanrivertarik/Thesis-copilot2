@@ -43,11 +43,11 @@ export function TubelightNavbar({ items, className }: TubelightNavbarProps) {
     <Box
       position="fixed"
       top={{ base: 'auto', md: '0' }}
-      bottom={{ base: '0', md: 'auto' }}
+      bottom={{ base: '0', md: '0' }}
       left="50%"
       transform="translateX(-50%)"
       zIndex={50}
-      mb={{ base: 6, md: 0 }}
+      pb={{ base: 6, md: 0 }}
       pt={{ base: 0, md: 6 }}
       className={className}
     >

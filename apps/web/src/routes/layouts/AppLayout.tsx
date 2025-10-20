@@ -31,14 +31,7 @@ export function AppLayout() {
           py={{ base: 3, md: 4 }}
           bg="transparent"
         >
-          <Heading 
-            size="md" 
-            color="academic.primaryText"
-            fontFamily="heading"
-            fontWeight="bold"
-          >
-            Thesis Copilot
-          </Heading>
+          
           {loading ? (
             <Spinner color="academic.accent" size="sm" />
           ) : user ? (
@@ -59,9 +52,7 @@ export function AppLayout() {
             </HStack>
           ) : (
             <HStack spacing={3}>
-              <Button as={RouterLink} to="/login" colorScheme="brand" size="sm">
-                Sign in
-              </Button>
+              
             </HStack>
           )}
         </Flex>

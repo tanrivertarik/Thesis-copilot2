@@ -141,49 +141,13 @@ export function LandingScene() {
                 </>
               ) : (
                 <>
-                  <Button
-                    as={RouterLink}
-                    to="/login"
-                    size="lg"
-                    colorScheme="brand"
-                    rightIcon={<ArrowRight size={18} />}
-                    isLoading={loading}
-                  >
-                    Sign in to begin
-                  </Button>
-                  <Button
-                    as={RouterLink}
-                    to="#features"
-                    variant="outline"
-                    size="lg"
-                  >
-                    Learn more
-                  </Button>
+                
                 </>
               )}
             </HStack>
 
-            {/* Trust Indicators */}
-            <HStack
-              spacing={8}
-              color="academic.secondaryText"
-              fontSize="sm"
-              flexWrap="wrap"
-              justify="center"
-            >
-              <Flex align="center" gap={2}>
-                <Shield size={16} />
-                <Text>Source-Locked AI</Text>
-              </Flex>
-              <Flex align="center" gap={2}>
-                <Award size={16} />
-                <Text>Academic Integrity</Text>
-              </Flex>
-              <Flex align="center" gap={2}>
-                <Users size={16} />
-                <Text>Trusted by Scholars</Text>
-              </Flex>
-            </HStack>
+            
+            
           </VStack>
         </Container>
       </Box>
