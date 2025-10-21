@@ -94,7 +94,7 @@ Instructions:
         systemPrompt,
         userPrompt,
         maxTokens: request.maxTokens,
-        temperature: 0.35
+        temperature: 0.7
       }),
       {
         maxRetries: 3,
@@ -321,7 +321,13 @@ Your task is to:
 4. Generate the new content that fulfills the command
 5. Return a JSON response with the operation details
 
-IMPORTANT: Return ONLY valid JSON, no extra text.
+IMPORTANT RULES:
+- Return ONLY valid JSON, no extra text
+- For commands requesting "write more", "add a page", or extensive content:
+  * Keep content under 1000 words
+  * If user requests more, suggest they run the command multiple times
+  * Break large additions into paragraph-sized chunks
+- Always complete your JSON response properly with closing braces
 
 Response format:
 {
@@ -329,12 +335,12 @@ Response format:
     "type": "insert" | "replace" | "delete" | "rewrite",
     // For insert:
     "position": "start" | "end" | "cursor",
-    "content": "HTML content to insert",
+    "content": "HTML content to insert (keep under 1000 words)",
     "reason": "Why this edit"
     // For replace:
     "from": number,  // character position
     "to": number,    // character position
-    "content": "HTML content",
+    "content": "HTML content (keep under 1000 words)",
     "originalContent": "what was replaced",
     "reason": "Why this edit"
     // For delete:
@@ -344,10 +350,10 @@ Response format:
     "reason": "Why this edit"
     // For rewrite:
     "target": "paragraph" | "section" | "selection",
-    "content": "rewritten HTML",
+    "content": "rewritten HTML (keep under 1000 words)",
     "reason": "Why this edit"
   },
-  "reasoning": "Explanation of what you did and why"
+  "reasoning": "Explanation of what you did and why. If the request was too large, suggest breaking it into smaller commands."
 }
 
 Keep all citation placeholders like [CITE:sourceId] exactly as they are.
@@ -404,7 +410,7 @@ Instructions:
         systemPrompt,
         userPrompt,
         maxTokens: request.maxTokens,
-        temperature: 0.3
+        temperature: 0.7
       }),
       {
         maxRetries: 2,
@@ -428,10 +434,32 @@ Instructions:
     try {
       parsed = JSON.parse(cleanedOutput);
     } catch (parseError) {
+      // Check if response was truncated (incomplete JSON)
+      const isTruncated = cleanedOutput.length > 0 &&
+        (!cleanedOutput.endsWith('}') || cleanedOutput.split('{').length !== cleanedOutput.split('}').length);
+
+      if (isTruncated) {
+        throw new AIServiceError(
+          ErrorCode.AI_SERVICE_ERROR,
+          `AI response was truncated. The response needs more tokens to complete. Please try again with a shorter document or simpler command.`,
+          {
+            userId: ownerId,
+            rawOutput: cleanedOutput.substring(0, 200),
+            isTruncated: true,
+            outputLength: response.output.length,
+            maxTokens: request.maxTokens
+          }
+        );
+      }
+
       throw new AIServiceError(
         ErrorCode.AI_SERVICE_ERROR,
         `Failed to parse AI response as JSON: ${(parseError as Error).message}`,
-        { userId: ownerId, rawOutput: cleanedOutput.substring(0, 200) }
+        {
+          userId: ownerId,
+          rawOutput: cleanedOutput.substring(0, 200),
+          parseError: (parseError as Error).message
+        }
       );
     }
 

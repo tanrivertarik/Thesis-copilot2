@@ -455,8 +455,8 @@ Return JSON with this exact structure:
     "Key insight or finding #4"
   ]
 }`,
-    maxTokens: 500,
-    temperature: 0.1
+    maxTokens: 20000,
+    temperature: 0.7
   });
 
   if (summaryResponse.usage) {

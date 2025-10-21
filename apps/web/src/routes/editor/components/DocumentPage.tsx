@@ -1,15 +1,17 @@
-import { Box } from '@chakra-ui/react';
+import { Box, Text } from '@chakra-ui/react';
 import { type ReactNode } from 'react';
 
 type DocumentPageProps = {
   children: ReactNode;
+  showPageNumbers?: boolean;
+  pageNumber?: number;
 };
 
 /**
  * DocumentPage component that styles content to look like a professional
  * document page (similar to Google Docs) with A4 dimensions, margins, and shadows.
  */
-export function DocumentPage({ children }: DocumentPageProps) {
+export function DocumentPage({ children, showPageNumbers = true, pageNumber = 1 }: DocumentPageProps) {
   return (
     <Box
       // Gray background like Google Docs
@@ -21,15 +23,16 @@ export function DocumentPage({ children }: DocumentPageProps) {
       justifyContent="center"
     >
       <Box
-        // White page with A4-like dimensions
+        // White page with A4-like dimensions (allowing multi-page)
         bg="white"
         width="100%"
         maxWidth="21cm" // A4 width
-        minHeight="29.7cm" // A4 height
+        minHeight="29.7cm" // A4 height (but can grow for multi-page)
         boxShadow="0 0 8px rgba(0, 0, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.08)"
         borderRadius="2px"
         // Page margins (2.54cm = 1 inch on all sides for academic papers)
         padding="2.54cm"
+        position="relative"
         sx={{
           // Academic paper typography
           fontFamily: '"Times New Roman", Times, serif',
@@ -108,16 +111,76 @@ export function DocumentPage({ children }: DocumentPageProps) {
             borderLeft: '3px solid #e5e7eb',
             paddingLeft: '1em'
           },
-          
+
+          // Page break support for multi-page documents
+          '& .page-break': {
+            pageBreakAfter: 'always',
+            breakAfter: 'page',
+            borderTop: '2px dashed #cbd5e0',
+            marginTop: '2em',
+            marginBottom: '2em',
+            paddingTop: '2em',
+            position: 'relative',
+            '&::before': {
+              content: '"Page Break"',
+              position: 'absolute',
+              top: '-10px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontSize: '10pt',
+              color: '#718096',
+              backgroundColor: 'white',
+              padding: '0 8px'
+            }
+          },
+
+          // Visual page indicator (every ~29.7cm of content)
+          '& h1:not(:first-of-type), & h2:not(:first-of-type)': {
+            pageBreakBefore: 'avoid'
+          },
+
           // Print-friendly
           '@media print': {
             boxShadow: 'none',
             margin: 0,
-            padding: '1in'
+            padding: '1in',
+            pageBreakInside: 'avoid',
+
+            // Remove visual page break indicators in print
+            '& .page-break::before': {
+              display: 'none'
+            },
+
+            '& .page-break': {
+              borderTop: 'none',
+              marginTop: 0,
+              marginBottom: 0,
+              paddingTop: 0
+            }
           }
         }}
       >
         {children}
+
+        {/* Page number (bottom center) */}
+        {showPageNumbers && (
+          <Text
+            position="absolute"
+            bottom="1.5cm"
+            left="50%"
+            transform="translateX(-50%)"
+            fontSize="10pt"
+            color="gray.600"
+            fontFamily='"Times New Roman", Times, serif'
+            sx={{
+              '@media print': {
+                color: 'black'
+              }
+            }}
+          >
+            {pageNumber}
+          </Text>
+        )}
       </Box>
     </Box>
   );

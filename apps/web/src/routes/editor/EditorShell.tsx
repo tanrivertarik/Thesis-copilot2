@@ -8,8 +8,14 @@ import {
   Skeleton,
   Stack,
   Text,
-  useToast
+  useToast,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Icon
 } from '@chakra-ui/react';
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
@@ -17,6 +23,8 @@ import { DOMSerializer, type Node as ProseMirrorNode } from 'prosemirror-model';
 import { PageShell } from '../shared/PageShell';
 import { TipTapEditor } from './components/TipTapEditor';
 import { CitationSidebar } from './components/CitationSidebar';
+import { CitationPicker } from './components/CitationPicker';
+import { VersionHistory } from './components/VersionHistory';
 import { DraftProvider, useDraft } from './components/EditorContext';
 import { DocumentPage } from './components/DocumentPage';
 import { AIChatPanel, type ChatMessage } from './components/AIChatPanel';
@@ -135,10 +143,11 @@ function EditorContentView({
   } = useDraft();
 
   const handleInsertCitation = useCallback(
-    (placeholder: string) => {
+    (sourceId: string, sourceTitle: string) => {
       if (!editor) {
         return;
       }
+      const placeholder = `[CITE:${sourceId}]`;
       editor.chain().focus().insertContent(`${placeholder} `).run();
     },
     [editor]
@@ -291,7 +300,7 @@ function EditorContentView({
           </Box>
 
           {/* Right: Document Editor */}
-          <Box flex="1" overflowY="auto">
+          <Box flex="1" overflowY="auto" position="relative">
             <DocumentPage>
               <TipTapEditor
                 content={html}
@@ -310,6 +319,14 @@ function EditorContentView({
                     : 'AI will write your draft automatically. '}
             </Text>
             {rewritePreview}
+
+            {/* Citation Picker - Floating button */}
+            {projectId && (
+              <CitationPicker
+                projectId={projectId}
+                onInsertCitation={handleInsertCitation}
+              />
+            )}
           </Box>
         </Flex>
       )}
@@ -341,7 +358,10 @@ function EditorInnerShell() {
     manualSave,
     isSaving,
     hasUnsavedChanges,
-    isLoading: isDraftLoading
+    isLoading: isDraftLoading,
+    version,
+    versions,
+    reload
   } = useDraft();
   const [editor, setEditor] = useState<Editor | null>(null);
   const [rewriteState, setRewriteState] = useState<RewriteState>({
@@ -355,6 +375,7 @@ function EditorInnerShell() {
   const [section, setSection] = useState<ThesisSection | null>(null);
   const [autoGenerateAttempted, setAutoGenerateAttempted] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const prevLoadingRef = useRef(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [pendingEdit, setPendingEdit] = useState<{
@@ -1123,7 +1144,7 @@ function EditorInnerShell() {
             coreArgument: project.constitution?.coreArgument
           },
           citations,
-          maxTokens: 500
+          maxTokens: 2048  // Increased to 2048 to handle complex commands like "write one more page"
         });
 
         // Apply changes directly to editor with highlighting
@@ -1275,14 +1296,89 @@ function EditorInnerShell() {
     }
   }, [editor, pendingEdit, setHtml, toast]);
 
+  // Get all sections and find current/prev/next
+  const sections = project?.constitution?.outline.sections || [];
+  const currentSectionIndex = sections.findIndex((s) => s.id === sectionId);
+  const hasPrevSection = currentSectionIndex > 0;
+  const hasNextSection = currentSectionIndex < sections.length - 1;
+  const prevSection = hasPrevSection ? sections[currentSectionIndex - 1] : null;
+  const nextSection = hasNextSection ? sections[currentSectionIndex + 1] : null;
+
+  const handleNavigateToSection = useCallback((targetSectionId: string) => {
+    const url = `/editor?projectId=${projectId}&sectionId=${targetSectionId}`;
+    window.location.href = url;
+  }, [projectId]);
+
   return (
     <PageShell
-      title="Document editor"
+      title={
+        <HStack spacing={3} align="center">
+          {/* Previous Section Button */}
+          <Button
+            size="sm"
+            variant="ghost"
+            leftIcon={<ChevronLeftIcon />}
+            onClick={() => prevSection && handleNavigateToSection(prevSection.id)}
+            isDisabled={!hasPrevSection}
+            title={prevSection ? `Previous: ${prevSection.title}` : 'No previous section'}
+          >
+            Prev
+          </Button>
+
+          {/* Section Dropdown Menu */}
+          <Menu>
+            <MenuButton
+              as={Button}
+              rightIcon={<ChevronDownIcon />}
+              size="md"
+              variant="ghost"
+              fontWeight="semibold"
+              fontSize="lg"
+              _hover={{ bg: 'gray.100' }}
+            >
+              {section?.title || 'Select section'}
+            </MenuButton>
+            <MenuList maxH="400px" overflowY="auto">
+              {sections.map((s) => (
+                <MenuItem
+                  key={s.id}
+                  onClick={() => handleNavigateToSection(s.id)}
+                  bg={s.id === sectionId ? 'blue.50' : undefined}
+                  fontWeight={s.id === sectionId ? 'semibold' : 'normal'}
+                  color={s.id === sectionId ? 'blue.600' : 'gray.700'}
+                >
+                  {s.title}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+
+          {/* Next Section Button */}
+          <Button
+            size="sm"
+            variant="ghost"
+            rightIcon={<ChevronRightIcon />}
+            onClick={() => nextSection && handleNavigateToSection(nextSection.id)}
+            isDisabled={!hasNextSection}
+            title={nextSection ? `Next: ${nextSection.title}` : 'No next section'}
+          >
+            Next
+          </Button>
+        </HStack>
+      }
       description="Review AI-assisted drafts, apply your edits, and request contextual rewrites."
       actions={
         <HStack spacing={3}>
           <Button as={RouterLink} to="/workspace" variant="ghost" colorScheme="blue">
             Back to workspace
+          </Button>
+          <Button
+            variant="outline"
+            colorScheme="purple"
+            onClick={() => setIsVersionHistoryOpen(true)}
+            isDisabled={versions.length === 0}
+          >
+            View History ({versions.length})
           </Button>
           <Button
             variant="outline"
@@ -1321,6 +1417,27 @@ function EditorInnerShell() {
         onApplyChanges={handleApplyChanges}
         onRejectChanges={handleRejectChanges}
       />
+
+      {/* Version History Modal */}
+      {projectId && sectionId && (
+        <VersionHistory
+          isOpen={isVersionHistoryOpen}
+          onClose={() => setIsVersionHistoryOpen(false)}
+          projectId={projectId}
+          sectionId={sectionId}
+          versions={versions}
+          currentVersion={version}
+          onVersionRestored={() => {
+            reload();
+            toast({
+              status: 'success',
+              title: 'Version restored',
+              description: 'Your document has been reloaded with the restored version',
+              duration: 3000
+            });
+          }}
+        />
+      )}
     </PageShell>
   );
 }

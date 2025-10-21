@@ -7,7 +7,7 @@ import {
   useRef,
   useState
 } from 'react';
-import type { Draft, DraftCitation } from '@thesis-copilot/shared';
+import type { Draft, DraftCitation, DraftVersion } from '@thesis-copilot/shared';
 import { fetchDraft, saveDraft } from '../../../lib/api';
 
 const AUTOSAVE_DELAY_MS = 2000;
@@ -19,6 +19,7 @@ type DraftContextValue = {
   citations: DraftCitation[];
   annotations: Draft['annotations'];
   version: number;
+  versions: DraftVersion[];
   updatedAt: string | null;
   isLoading: boolean;
   isSaving: boolean;
@@ -61,6 +62,7 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
   const [error, setError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [version, setVersion] = useState(1);
+  const [versions, setVersions] = useState<DraftVersion[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [autosaveReady, setAutosaveReady] = useState(false);
@@ -137,6 +139,7 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
         pendingSnapshotRef.current = snapshot;
         setHasUnsavedChanges(false);
         setVersion(draft.version);
+        setVersions(draft.versions ?? []);
         setUpdatedAt(draft.updatedAt);
         setLastSavedAt(draft.updatedAt);
         setPersistedHtml(payload.html);
@@ -238,6 +241,7 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
         setCitationsState(initialCitations);
         setAnnotationsState(initialAnnotations);
         setVersion(draft?.version ?? 1);
+        setVersions(draft?.versions ?? []);
         setUpdatedAt(draft?.updatedAt ?? null);
         setLastSavedAt(draft?.updatedAt ?? null);
         setPersistedHtml(initialHtml);
@@ -339,6 +343,7 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
       citations,
       annotations,
       version,
+      versions,
       updatedAt,
       isLoading,
       isSaving,
@@ -358,6 +363,7 @@ export function DraftProvider({ projectId, sectionId, children }: DraftProviderP
       citations,
       annotations,
       version,
+      versions,
       updatedAt,
       isLoading,
       isSaving,

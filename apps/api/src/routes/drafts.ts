@@ -2,7 +2,7 @@ import { Router, type Response } from 'express';
 import { DraftSaveInputSchema } from '@thesis-copilot/shared';
 import { asyncHandler, HttpError } from '../utils/http.js';
 import type { AuthedRequest } from '../types.js';
-import { getDraft, saveDraft } from '../services/draft-service.js';
+import { getDraft, saveDraft, restoreDraftVersion } from '../services/draft-service.js';
 
 export const draftsRouter = Router();
 
@@ -33,6 +33,26 @@ draftsRouter.put(
       req.params.sectionId,
       parsed.data
     );
+    res.json({ data: draft });
+  })
+);
+
+draftsRouter.post(
+  '/projects/:projectId/drafts/:sectionId/restore/:versionId',
+  asyncHandler(async (req: AuthedRequest, res: Response) => {
+    const { projectId, sectionId, versionId } = req.params;
+
+    const draft = await restoreDraftVersion(
+      req.user.id,
+      projectId,
+      sectionId,
+      versionId
+    );
+
+    if (!draft) {
+      throw new HttpError(404, 'Draft or version not found');
+    }
+
     res.json({ data: draft });
   })
 );

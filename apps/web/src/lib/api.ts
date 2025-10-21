@@ -87,6 +87,16 @@ export async function saveDraft(
   });
 }
 
+export async function restoreDraftVersion(
+  projectId: string,
+  sectionId: string,
+  versionId: string
+): Promise<Draft> {
+  return request<Draft>(`/api/projects/${projectId}/drafts/${sectionId}/restore/${versionId}`, {
+    method: 'POST'
+  });
+}
+
 export async function fetchSources(projectId: string): Promise<Source[]> {
   return request<Source[]>(`/api/projects/${projectId}/sources`);
 }

@@ -8,7 +8,9 @@ import {
   Flex,
   Badge,
   Spinner,
-  Button
+  Button,
+  Wrap,
+  WrapItem
 } from '@chakra-ui/react';
 import { useState, useRef, useEffect } from 'react';
 import { ArrowUpIcon } from '@chakra-ui/icons';
@@ -30,6 +32,15 @@ type AIChatPanelProps = {
   onRejectChanges?: () => void;
 };
 
+const SUGGESTED_COMMANDS = [
+  { text: "Write an introduction paragraph", icon: "✍️" },
+  { text: "Make this section shorter", icon: "✂️" },
+  { text: "Add more academic citations", icon: "📚" },
+  { text: "Improve the writing style", icon: "✨" },
+  { text: "Expand on this idea with 2 more paragraphs", icon: "📝" },
+  { text: "Rewrite this to be more formal", icon: "🎓" }
+];
+
 export function AIChatPanel({
   messages,
   onSendCommand,
@@ -49,9 +60,10 @@ export function AIChatPanel({
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
-    if (inputValue.trim() && !isProcessing) {
-      onSendCommand(inputValue.trim());
+  const handleSend = (command?: string) => {
+    const textToSend = command || inputValue.trim();
+    if (textToSend && !isProcessing) {
+      onSendCommand(textToSend);
       setInputValue('');
     }
   };
@@ -103,11 +115,35 @@ export function AIChatPanel({
         align="stretch"
       >
         {messages.length === 0 ? (
-          <Box textAlign="center" py={8} color="gray.500">
-            <Text fontSize="sm">
-              No messages yet. Start by asking the AI to write or edit your draft.
-            </Text>
-          </Box>
+          <VStack spacing={4} py={6} px={2}>
+            <Box textAlign="center" color="gray.600">
+              <Text fontSize="sm" fontWeight="semibold" mb={1}>
+                Try these commands:
+              </Text>
+              <Text fontSize="xs" color="gray.500">
+                Click a suggestion or type your own
+              </Text>
+            </Box>
+            <Wrap spacing={2} justify="center">
+              {SUGGESTED_COMMANDS.map((suggestion) => (
+                <WrapItem key={suggestion.text}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    colorScheme="blue"
+                    onClick={() => handleSend(suggestion.text)}
+                    isDisabled={isProcessing}
+                    leftIcon={<Text>{suggestion.icon}</Text>}
+                    _hover={{ bg: 'blue.50', transform: 'scale(1.02)' }}
+                    transition="all 0.2s"
+                    fontSize="xs"
+                  >
+                    {suggestion.text}
+                  </Button>
+                </WrapItem>
+              ))}
+            </Wrap>
+          </VStack>
         ) : (
           messages.map((message) => (
             <Box

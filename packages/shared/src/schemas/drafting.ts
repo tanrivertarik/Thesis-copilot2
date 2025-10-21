@@ -128,7 +128,7 @@ export const AICommandRequestSchema = z.object({
     })
     .optional(),
   citations: z.array(DraftCitationSchema).default([]),
-  maxTokens: z.number().int().positive().max(1024).default(500)
+  maxTokens: z.number().int().positive().max(100000).default(2048)  // Allow up to 100k tokens for complex long-form generation
 });
 
 export const AICommandResponseSchema = z.object({

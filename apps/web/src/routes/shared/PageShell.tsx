@@ -2,7 +2,7 @@ import type { PropsWithChildren, ReactNode } from 'react';
 import { Box, Heading, Stack, Text } from '@chakra-ui/react';
 
 type PageShellProps = PropsWithChildren<{
-  title: string;
+  title: string | ReactNode;
   description?: string;
   actions?: ReactNode;
 }>;

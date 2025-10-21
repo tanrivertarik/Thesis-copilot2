@@ -153,3 +153,51 @@ export async function saveDraft(
   const { ownerId: _ownerId, ...rest } = draft;
   return rest;
 }
+
+export async function restoreDraftVersion(
+  ownerId: string,
+  projectId: string,
+  sectionId: string,
+  versionId: string
+): Promise<Draft | null> {
+  const project = await ensureProjectOwnership(ownerId, projectId);
+  if (!project) {
+    throw new Error('Project not found or access denied');
+  }
+
+  const db = getFirestore();
+  const docId = `${projectId}_${sectionId}`;
+  const docRef = db.collection(COLLECTION).doc(docId);
+  const snapshot = await docRef.get();
+  const existing = docToDraft(snapshot);
+
+  if (!existing || existing.ownerId !== ownerId) {
+    return null;
+  }
+
+  // Find the version to restore
+  const versionToRestore = existing.versions.find((v) => v.id === versionId);
+  if (!versionToRestore) {
+    throw new Error('Version not found');
+  }
+
+  const now = new Date().toISOString();
+
+  // Create a version from current state before restoring
+  const currentVersion = createVersionFromDraft(existing);
+  const versions = [currentVersion, ...existing.versions].slice(0, VERSION_HISTORY_LIMIT);
+
+  const draft: DraftDocument = {
+    ...existing,
+    html: versionToRestore.html,
+    version: existing.version + 1,
+    versions,
+    updatedAt: now,
+    lastSavedBy: ownerId
+  };
+
+  await docRef.set(draft, { merge: true });
+
+  const { ownerId: _ownerId, ...rest } = draft;
+  return rest;
+}

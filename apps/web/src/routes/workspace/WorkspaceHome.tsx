@@ -42,7 +42,8 @@ import {
   updateProject,
   saveDraft,
   generateDraft,
-  downloadProjectDocx
+  downloadProjectDocx,
+  fetchDraft
 } from '../../lib/api';
 import { PageShell } from '../shared/PageShell';
 import { useStreamingDraft } from '../../lib/hooks/useStreamingDraft';
@@ -158,6 +159,11 @@ function deriveSectionStatus(hasReadySources: boolean): SectionStatus {
   return 'READY_TO_DRAFT';
 }
 
+function getWordCount(html: string): number {
+  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return text.split(' ').filter(word => word.length > 0).length;
+}
+
 function statusLabel(status: SectionStatus) {
   if (status === 'READY_TO_DRAFT') {
     return { label: 'Ready to draft', color: 'green' as const };
@@ -171,10 +177,14 @@ type SectionOutlineItemProps = {
   isActive: boolean;
   status: SectionStatus;
   onSelect: (sectionId: string) => void;
+  wordCount?: number;
 };
 
-function SectionOutlineItem({ section, index, isActive, status, onSelect }: SectionOutlineItemProps) {
+function SectionOutlineItem({ section, index, isActive, status, onSelect, wordCount = 0 }: SectionOutlineItemProps) {
   const statusMeta = statusLabel(status);
+  const hasTarget = Boolean(section.expectedLength);
+  const progress = hasTarget && section.expectedLength ? Math.min((wordCount / section.expectedLength) * 100, 100) : 0;
+
   return (
     <Box
       px={4}
@@ -202,6 +212,22 @@ function SectionOutlineItem({ section, index, isActive, status, onSelect }: Sect
         <Text color="blue.200" fontSize="sm" noOfLines={2}>
           {section.objective}
         </Text>
+        {hasTarget && (
+          <Stack spacing={1}>
+            <Flex justify="space-between" fontSize="xs" color="blue.300">
+              <Text>{wordCount} words</Text>
+              <Text>{section.expectedLength} target</Text>
+            </Flex>
+            <Box w="100%" h="4px" bg="rgba(15,23,42,0.8)" borderRadius="full" overflow="hidden">
+              <Box
+                h="100%"
+                w={`${progress}%`}
+                bg={progress >= 100 ? 'green.400' : progress >= 50 ? 'blue.400' : 'yellow.400'}
+                transition="width 0.3s"
+              />
+            </Box>
+          </Stack>
+        )}
       </Stack>
     </Box>
   );
@@ -262,6 +288,8 @@ export function WorkspaceHome() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loadingSources, setLoadingSources] = useState(false);
   const [sourcesError, setSourcesError] = useState<string | null>(null);
+
+  const [sectionWordCounts, setSectionWordCounts] = useState<Record<string, number>>({});
 
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [draftingPreview, setDraftingPreview] = useState(false);
@@ -381,6 +409,35 @@ export function WorkspaceHome() {
   useEffect(() => {
     void reloadSources();
   }, [reloadSources]);
+
+  // Load word counts for all sections
+  useEffect(() => {
+    const loadWordCounts = async () => {
+      if (!project || sections.length === 0) {
+        setSectionWordCounts({});
+        return;
+      }
+
+      const counts: Record<string, number> = {};
+
+      // Fetch drafts for all sections in parallel
+      await Promise.all(
+        sections.map(async (section) => {
+          try {
+            const draft = await fetchDraft(project.id, section.id);
+            counts[section.id] = draft?.html ? getWordCount(draft.html) : 0;
+          } catch (error) {
+            console.error(`Failed to fetch draft for section ${section.id}:`, error);
+            counts[section.id] = 0;
+          }
+        })
+      );
+
+      setSectionWordCounts(counts);
+    };
+
+    void loadWordCounts();
+  }, [project, sections]);
 
   const hasSources = sources.length > 0;
   const readySources = sources.filter((source) => source.status === 'READY');
@@ -690,6 +747,7 @@ export function WorkspaceHome() {
                     isActive={section.id === selectedSectionId}
                     status={sectionStatus}
                     onSelect={setSelectedSectionId}
+                    wordCount={sectionWordCounts[section.id] || 0}
                   />
                 ))}
               </VStack>
