@@ -35,15 +35,19 @@ async function ensureProjectOwnership(ownerId: string, projectId: string) {
 }
 
 function createVersionFromDraft(draft: DraftDocument): DraftVersion {
-  return {
+  const version: DraftVersion = {
     id: randomUUID(),
     html: draft.html,
     createdAt: draft.updatedAt,
-    createdBy: draft.lastSavedBy,
-    summary: draft.citations.length
-      ? `Saved with ${draft.citations.length} citation${draft.citations.length > 1 ? 's' : ''}`
-      : undefined
+    createdBy: draft.lastSavedBy
   };
+
+  // Only add summary if there are citations (avoid undefined in Firestore)
+  if (draft.citations.length > 0) {
+    version.summary = `Saved with ${draft.citations.length} citation${draft.citations.length > 1 ? 's' : ''}`;
+  }
+
+  return version;
 }
 
 function draftsEqual(a: DraftDocument, b: DraftSaveInput) {

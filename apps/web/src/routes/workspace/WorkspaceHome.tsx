@@ -28,19 +28,21 @@ import {
   Textarea,
   useDisclosure,
   useToast,
-  VStack
+  VStack,
+  HStack
 } from '@chakra-ui/react';
 import { CheckCircleIcon, WarningTwoIcon } from '@chakra-ui/icons';
 import type { Project, Source, ThesisSection } from '@thesis-copilot/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   fetchProjects,
   fetchSources,
   submitRetrieval,
   updateProject,
   saveDraft,
-  generateDraft
+  generateDraft,
+  downloadProjectDocx
 } from '../../lib/api';
 import { PageShell } from '../shared/PageShell';
 import { useStreamingDraft } from '../../lib/hooks/useStreamingDraft';
@@ -248,6 +250,8 @@ function ReadinessChecklist({ items }: { items: ReadinessItem[] }) {
 export function WorkspaceHome() {
   const toast = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const projectIdFromUrl = searchParams.get('projectId');
   const addSectionModal = useDisclosure();
 
   const [loadingProject, setLoadingProject] = useState(true);
@@ -267,6 +271,7 @@ export function WorkspaceHome() {
 
   const [savingSection, setSavingSection] = useState(false);
   const [generatingInitialDraft, setGeneratingInitialDraft] = useState(false);
+  const [isExportingProject, setIsExportingProject] = useState(false);
 
   const { generateDraftStreaming } = useStreamingDraft({
     onComplete: async (fullText) => {
@@ -315,7 +320,17 @@ export function WorkspaceHome() {
       try {
         const data = await fetchProjects();
         setProjects(data);
-        if (data.length > 0) {
+
+        // If projectId is provided in URL, use that project
+        if (projectIdFromUrl) {
+          const selectedProject = data.find((p) => p.id === projectIdFromUrl);
+          if (selectedProject) {
+            setProject(selectedProject);
+          } else {
+            // Project ID not found, fall back to first project
+            setProject(data.length > 0 ? data[0] : null);
+          }
+        } else if (data.length > 0) {
           setProject(data[0]);
         } else {
           setProject(null);
@@ -329,8 +344,8 @@ export function WorkspaceHome() {
       }
     };
 
-    loadProjects();
-  }, []);
+    void loadProjects();
+  }, [projectIdFromUrl]);
 
   const sections = useMemo<ThesisSection[]>(
     () => project?.constitution?.outline.sections ?? [],
@@ -542,6 +557,32 @@ export function WorkspaceHome() {
     );
   }, [project, selectedSection, navigate]);
 
+  const handleExportProject = useCallback(async () => {
+    if (!project) {
+      return;
+    }
+
+    setIsExportingProject(true);
+    try {
+      await downloadProjectDocx(project.id);
+      toast({
+        status: 'success',
+        title: 'Export successful',
+        description: 'Your complete thesis has been downloaded as a Word document.',
+        duration: 3000
+      });
+    } catch (error) {
+      toast({
+        status: 'error',
+        title: 'Export failed',
+        description: (error as Error).message,
+        duration: 5000
+      });
+    } finally {
+      setIsExportingProject(false);
+    }
+  }, [project, toast]);
+
   if (loadingProject) {
     return (
       <PageShell title="Workspace" description="Manage outline, sources, and drafting flow.">
@@ -595,9 +636,20 @@ export function WorkspaceHome() {
       title={project.title}
       description="Outline your thesis, prepare evidence, and move sections into the writer."
       actions={
-        <Button colorScheme="blue" variant="outline" onClick={addSectionModal.onOpen}>
-          Add section
-        </Button>
+        <HStack spacing={3}>
+          <Button
+            colorScheme="green"
+            variant="outline"
+            onClick={() => void handleExportProject()}
+            isLoading={isExportingProject}
+            isDisabled={isExportingProject}
+          >
+            Export Complete Thesis
+          </Button>
+          <Button colorScheme="blue" variant="outline" onClick={addSectionModal.onOpen}>
+            Add section
+          </Button>
+        </HStack>
       }
     >
       <Grid templateColumns={{ base: '1fr', lg: '280px 1fr' }} gap={6} alignItems="flex-start">

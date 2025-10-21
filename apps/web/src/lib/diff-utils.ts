@@ -107,7 +107,7 @@ function escapeHtml(text: string): string {
 
 /**
  * Apply diff marks to editor content for preview
- * This version uses TipTap marks for better integration
+ * This version uses paragraph-level highlighting for better readability
  */
 export function applyDiffMarks(
   originalHtml: string,
@@ -120,26 +120,48 @@ export function applyDiffMarks(
     return { diffHtml: newHtml, hasChanges: false };
   }
 
-  const changes = computeWordDiff(oldText, newText);
+  // Split into paragraphs
+  const oldParagraphs = originalHtml.split(/<\/p>/i).filter(p => p.trim());
+  const newParagraphs = newHtml.split(/<\/p>/i).filter(p => p.trim());
 
   const parts: string[] = [];
   let hasAdditions = false;
   let hasDeletions = false;
 
-  for (const change of changes) {
-    if (change.type === 'added') {
-      parts.push(`<span data-diff="addition">${escapeHtml(change.value)}</span>`);
+  const maxLength = Math.max(oldParagraphs.length, newParagraphs.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const oldP = oldParagraphs[i] || '';
+    const newP = newParagraphs[i] || '';
+
+    // Clean up paragraph tags
+    const oldPClean = oldP.replace(/<p[^>]*>/i, '').trim();
+    const newPClean = newP.replace(/<p[^>]*>/i, '').trim();
+
+    if (oldPClean === newPClean) {
+      // Unchanged paragraph
+      if (newPClean) {
+        parts.push(`<p>${newPClean}</p>`);
+      }
+    } else if (!oldPClean && newPClean) {
+      // New paragraph added
+      parts.push(`<p data-diff="addition" style="background-color: #d4edda; padding: 8px; border-radius: 4px;">${newPClean}</p>`);
       hasAdditions = true;
-    } else if (change.type === 'removed') {
-      parts.push(`<span data-diff="deletion">${escapeHtml(change.value)}</span>`);
+    } else if (oldPClean && !newPClean) {
+      // Paragraph deleted
+      parts.push(`<p data-diff="deletion" style="background-color: #f8d7da; text-decoration: line-through; padding: 8px; border-radius: 4px;">${oldPClean}</p>`);
       hasDeletions = true;
     } else {
-      parts.push(escapeHtml(change.value));
+      // Paragraph modified - show both
+      parts.push(`<p data-diff="deletion" style="background-color: #f8d7da; text-decoration: line-through; padding: 8px; border-radius: 4px;">${oldPClean}</p>`);
+      parts.push(`<p data-diff="addition" style="background-color: #d4edda; padding: 8px; border-radius: 4px;">${newPClean}</p>`);
+      hasAdditions = true;
+      hasDeletions = true;
     }
   }
 
   return {
-    diffHtml: `<p>${parts.join('')}</p>`,
+    diffHtml: parts.join(''),
     hasChanges: hasAdditions || hasDeletions
   };
 }

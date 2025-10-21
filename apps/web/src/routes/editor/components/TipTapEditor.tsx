@@ -130,6 +130,40 @@ export function TipTapEditor({
 
             '& p': {
               color: 'black'
+            },
+
+            // Diff highlighting styles - paragraph level
+            '& p[data-diff="addition"]': {
+              backgroundColor: '#d4edda',
+              color: '#155724',
+              padding: '8px',
+              borderRadius: '4px',
+              borderLeft: '4px solid #28a745'
+            },
+
+            '& p[data-diff="deletion"]': {
+              backgroundColor: '#f8d7da',
+              color: '#721c24',
+              textDecoration: 'line-through',
+              padding: '8px',
+              borderRadius: '4px',
+              borderLeft: '4px solid #dc3545'
+            },
+
+            // Diff highlighting styles - span level (legacy support)
+            '& span[data-diff="addition"]': {
+              backgroundColor: '#d4edda',
+              color: '#155724',
+              padding: '2px 0',
+              borderRadius: '2px'
+            },
+
+            '& span[data-diff="deletion"]': {
+              backgroundColor: '#f8d7da',
+              color: '#721c24',
+              textDecoration: 'line-through',
+              padding: '2px 0',
+              borderRadius: '2px'
             }
           }
         }}

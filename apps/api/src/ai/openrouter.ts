@@ -350,10 +350,10 @@ export async function createEmbeddings(
 }
 
 export async function generateChatCompletion({
-  model = 'anthropic/claude-3.5-sonnet', // CHANGE THE MODEL WITH GEMINI 2.5 PRO !!!
+  model = 'google/gemini-2.5-pro',
   systemPrompt,
   userPrompt,
-  maxTokens = 10000,
+  maxTokens = 100000,
   temperature = 0.7
 }: {
   model?: string;

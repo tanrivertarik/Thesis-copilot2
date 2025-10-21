@@ -6,6 +6,7 @@ import { OnboardingOverview } from './onboarding/OnboardingOverview';
 import { ProjectDetailsStep } from './onboarding/ProjectDetailsStep';
 import { ResearchInputsStep } from './onboarding/ResearchInputsStep';
 import { SummaryStep } from './onboarding/SummaryStep';
+import { Dashboard } from './dashboard/Dashboard';
 import { WorkspaceHome } from './workspace/WorkspaceHome';
 import { SourceManagement } from './workspace/sources/SourceManagement';
 import { EditorShell } from './editor/EditorShell';
@@ -24,6 +25,14 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <LandingScene />
+      },
+      {
+        path: 'dashboard',
+        element: (
+          <RequireAuth>
+            <Dashboard />
+          </RequireAuth>
+        )
       },
       {
         path: 'onboarding',

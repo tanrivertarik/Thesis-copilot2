@@ -7,7 +7,8 @@ import {
   IconButton,
   Flex,
   Badge,
-  Spinner
+  Spinner,
+  Button
 } from '@chakra-ui/react';
 import { useState, useRef, useEffect } from 'react';
 import { ArrowUpIcon } from '@chakra-ui/icons';
@@ -24,9 +25,19 @@ type AIChatPanelProps = {
   messages: ChatMessage[];
   onSendCommand: (command: string) => void;
   isProcessing?: boolean;
+  hasPendingEdit?: boolean;
+  onApplyChanges?: () => void;
+  onRejectChanges?: () => void;
 };
 
-export function AIChatPanel({ messages, onSendCommand, isProcessing = false }: AIChatPanelProps) {
+export function AIChatPanel({
+  messages,
+  onSendCommand,
+  isProcessing = false,
+  hasPendingEdit = false,
+  onApplyChanges,
+  onRejectChanges
+}: AIChatPanelProps) {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -145,6 +156,41 @@ export function AIChatPanel({ messages, onSendCommand, isProcessing = false }: A
         )}
         <div ref={messagesEndRef} />
       </VStack>
+
+      {/* Apply/Reject Action Buttons */}
+      {hasPendingEdit && (
+        <Box
+          p={3}
+          borderTop="1px solid"
+          borderColor="gray.200"
+          bg="blue.50"
+        >
+          <HStack spacing={2}>
+            <Button
+              colorScheme="green"
+              size="sm"
+              flex="1"
+              onClick={onApplyChanges}
+              leftIcon={<Text>✅</Text>}
+            >
+              Apply Changes
+            </Button>
+            <Button
+              colorScheme="red"
+              size="sm"
+              flex="1"
+              variant="outline"
+              onClick={onRejectChanges}
+              leftIcon={<Text>❌</Text>}
+            >
+              Reject
+            </Button>
+          </HStack>
+          <Text fontSize="xs" color="gray.600" mt={2} textAlign="center">
+            Review the highlighted changes in the editor
+          </Text>
+        </Box>
+      )}
 
       {/* Input */}
       <Box

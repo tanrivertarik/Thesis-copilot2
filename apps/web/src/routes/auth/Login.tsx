@@ -16,9 +16,9 @@ export function Login() {
       loading,
       currentPath: location.pathname
     });
-    
+
     if (user && !loading) {
-      const redirectTo = (location.state as { from?: Location })?.from?.pathname ?? '/workspace';
+      const redirectTo = (location.state as { from?: Location })?.from?.pathname ?? '/dashboard';
       console.log('🎯 Navigating authenticated user to:', redirectTo);
       navigate(redirectTo, { replace: true });
     }

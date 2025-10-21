@@ -20,7 +20,6 @@ import { CitationSidebar } from './components/CitationSidebar';
 import { DraftProvider, useDraft } from './components/EditorContext';
 import { DocumentPage } from './components/DocumentPage';
 import { AIChatPanel, type ChatMessage } from './components/AIChatPanel';
-import { DiffPreviewModal } from './components/DiffPreviewModal';
 import {
   requestParagraphRewrite,
   submitRetrieval,
@@ -65,6 +64,9 @@ type EditorContentViewProps = {
   isGeneratingDraft?: boolean;
   chatMessages: ChatMessage[];
   onSendCommand: (command: string) => void;
+  pendingEdit: { operation: EditOperation | null; originalHtml: string } | null;
+  onApplyChanges: () => void;
+  onRejectChanges: () => void;
 };
 
 function enumerateParagraphs(editor: Editor): ParagraphInfo[] {
@@ -114,7 +116,10 @@ function EditorContentView({
   onDismissRewrite,
   isGeneratingDraft,
   chatMessages,
-  onSendCommand
+  onSendCommand,
+  pendingEdit,
+  onApplyChanges,
+  onRejectChanges
 }: EditorContentViewProps) {
   const {
     projectId,
@@ -279,6 +284,9 @@ function EditorContentView({
               messages={chatMessages}
               onSendCommand={onSendCommand}
               isProcessing={isGeneratingDraft}
+              hasPendingEdit={!!pendingEdit}
+              onApplyChanges={onApplyChanges}
+              onRejectChanges={onRejectChanges}
             />
           </Box>
 
@@ -349,19 +357,10 @@ function EditorInnerShell() {
   const [isExporting, setIsExporting] = useState(false);
   const prevLoadingRef = useRef(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [diffPreview, setDiffPreview] = useState<{
-    isOpen: boolean;
+  const [pendingEdit, setPendingEdit] = useState<{
     operation: EditOperation | null;
     originalHtml: string;
-    previewHtml: string;
-    reasoning: string;
-  }>({
-    isOpen: false,
-    operation: null,
-    originalHtml: '',
-    previewHtml: '',
-    reasoning: ''
-  });
+  } | null>(null);
 
   // Initialize streaming hook first (before useEffects that use it)
   const { generateDraftStreaming } = useStreamingDraft({
@@ -1127,7 +1126,52 @@ function EditorInnerShell() {
           maxTokens: 500
         });
 
-        // Update chat with response
+        // Apply changes directly to editor with highlighting
+        const operation = response.operation;
+
+        // Store pending edit for approval
+        setPendingEdit({
+          operation,
+          originalHtml: currentHtml
+        });
+
+        // Apply changes with diff highlighting in editor
+        if (operation.type === 'insert') {
+          if (operation.position === 'end') {
+            editor.chain().focus('end').insertContent(`<span data-diff="addition">${operation.content}</span>`).run();
+          } else if (operation.position === 'start') {
+            editor.chain().focus('start').insertContent(`<span data-diff="addition">${operation.content}</span>`).run();
+          } else {
+            editor.chain().focus().insertContent(`<span data-diff="addition">${operation.content}</span>`).run();
+          }
+        } else if (operation.type === 'replace') {
+          const contentBefore = currentHtml.substring(0, operation.from);
+          const contentAfter = currentHtml.substring(operation.to);
+          const originalContent = operation.originalContent || currentHtml.substring(operation.from, operation.to);
+
+          const newHtml = contentBefore +
+            `<span data-diff="deletion">${originalContent}</span>` +
+            `<span data-diff="addition">${operation.content}</span>` +
+            contentAfter;
+
+          editor.commands.setContent(newHtml);
+        } else if (operation.type === 'delete') {
+          const deletedContent = operation.deletedContent || currentHtml.substring(operation.from, operation.to);
+          editor
+            .chain()
+            .focus()
+            .insertContentAt(
+              { from: operation.from, to: operation.to },
+              `<span data-diff="deletion">${deletedContent}</span>`
+            )
+            .run();
+        } else if (operation.type === 'rewrite') {
+          // Show full rewrite with diff marks
+          const { diffHtml } = applyDiffMarks(currentHtml, operation.content);
+          editor.commands.setContent(diffHtml);
+        }
+
+        // Update chat with response and add action buttons
         setChatMessages((prev) => {
           const updated = [...prev];
           const thinkingMsg = updated.find((m) => m.id === thinkingMsgId);
@@ -1136,41 +1180,6 @@ function EditorInnerShell() {
             thinkingMsg.status = 'complete';
           }
           return updated;
-        });
-
-        // Show diff preview modal
-        const operation = response.operation;
-        let originalHtml = '';
-        let previewHtml = '';
-
-        if (operation.type === 'insert') {
-          originalHtml = currentHtml;
-          previewHtml = operation.content;
-        } else if (operation.type === 'replace') {
-          const contentBeforeReplace = currentHtml.substring(0, operation.from);
-          const contentAfterReplace = currentHtml.substring(operation.to);
-          originalHtml = operation.originalContent || currentHtml.substring(operation.from, operation.to);
-
-          // Generate diff preview
-          const { diffHtml } = applyDiffMarks(originalHtml, operation.content);
-          previewHtml = contentBeforeReplace + diffHtml + contentAfterReplace;
-        } else if (operation.type === 'delete') {
-          originalHtml = operation.deletedContent || currentHtml;
-          const { diffHtml } = applyDiffMarks(originalHtml, '');
-          previewHtml = diffHtml;
-        } else if (operation.type === 'rewrite') {
-          originalHtml = currentHtml;
-          const { diffHtml } = applyDiffMarks(currentHtml, operation.content);
-          previewHtml = diffHtml;
-        }
-
-        // Open diff preview modal
-        setDiffPreview({
-          isOpen: true,
-          operation,
-          originalHtml,
-          previewHtml,
-          reasoning: response.reasoning
         });
       } catch (error) {
         // Update chat with error
@@ -1195,52 +1204,36 @@ function EditorInnerShell() {
     [projectId, sectionId, project, editor, citations, setHtml, toast]
   );
 
-  const handleApplyDiff = useCallback(() => {
-    if (!editor || !diffPreview.operation) {
+  const handleApplyChanges = useCallback(() => {
+    if (!editor || !pendingEdit?.operation) {
       return;
     }
 
-    const operation = diffPreview.operation;
-
     try {
-      if (operation.type === 'insert') {
-        if (operation.position === 'end') {
-          editor.chain().focus('end').insertContent(operation.content).run();
-        } else if (operation.position === 'start') {
-          editor.chain().focus('start').insertContent(operation.content).run();
-        } else {
-          // cursor position
-          editor.chain().focus().insertContent(operation.content).run();
-        }
-      } else if (operation.type === 'replace') {
-        editor
-          .chain()
-          .focus()
-          .insertContentAt({ from: operation.from, to: operation.to }, operation.content)
-          .run();
-      } else if (operation.type === 'delete') {
-        editor.chain().focus().deleteRange({ from: operation.from, to: operation.to }).run();
-      } else if (operation.type === 'rewrite') {
-        // For rewrite, replace all content
-        editor.commands.setContent(operation.content);
-      }
+      // Remove diff highlights and keep the new content
+      const currentHtml = editor.getHTML();
 
-      // Update context HTML
-      setHtml(editor.getHTML());
+      // Remove paragraph-level diff attributes and styles
+      const cleanHtml = currentHtml
+        // Remove deleted paragraphs entirely
+        .replace(/<p[^>]*data-diff="deletion"[^>]*>.*?<\/p>/g, '')
+        // Keep addition paragraphs but remove diff attributes and styles
+        .replace(/<p([^>]*)data-diff="addition"([^>]*)style="[^"]*"([^>]*)>/g, '<p$1$2$3>')
+        .replace(/data-diff="addition"/g, '')
+        // Also handle span-level diffs (legacy)
+        .replace(/<span data-diff="deletion">.*?<\/span>/g, '') // Remove deleted text
+        .replace(/<span data-diff="addition">(.*?)<\/span>/g, '$1'); // Keep added text, remove highlights
 
-      // Close modal
-      setDiffPreview({
-        isOpen: false,
-        operation: null,
-        originalHtml: '',
-        previewHtml: '',
-        reasoning: ''
-      });
+      editor.commands.setContent(cleanHtml);
+      setHtml(cleanHtml);
+
+      // Clear pending edit
+      setPendingEdit(null);
 
       toast({
         status: 'success',
         title: 'Changes applied',
-        description: operation.reason || 'Edit completed successfully',
+        description: 'Your edits have been saved',
         duration: 3000
       });
     } catch (error) {
@@ -1251,17 +1244,36 @@ function EditorInnerShell() {
         duration: 5000
       });
     }
-  }, [editor, diffPreview.operation, setHtml, toast]);
+  }, [editor, pendingEdit, setHtml, toast]);
 
-  const handleCloseDiff = useCallback(() => {
-    setDiffPreview({
-      isOpen: false,
-      operation: null,
-      originalHtml: '',
-      previewHtml: '',
-      reasoning: ''
-    });
-  }, []);
+  const handleRejectChanges = useCallback(() => {
+    if (!editor || !pendingEdit) {
+      return;
+    }
+
+    try {
+      // Restore original HTML
+      editor.commands.setContent(pendingEdit.originalHtml);
+      setHtml(pendingEdit.originalHtml);
+
+      // Clear pending edit
+      setPendingEdit(null);
+
+      toast({
+        status: 'info',
+        title: 'Changes rejected',
+        description: 'Document restored to previous state',
+        duration: 3000
+      });
+    } catch (error) {
+      toast({
+        status: 'error',
+        title: 'Failed to reject changes',
+        description: (error as Error).message,
+        duration: 5000
+      });
+    }
+  }, [editor, pendingEdit, setHtml, toast]);
 
   return (
     <PageShell
@@ -1305,20 +1317,10 @@ function EditorInnerShell() {
         isGeneratingDraft={isGeneratingDraft}
         chatMessages={chatMessages}
         onSendCommand={handleSendCommand}
+        pendingEdit={pendingEdit}
+        onApplyChanges={handleApplyChanges}
+        onRejectChanges={handleRejectChanges}
       />
-
-      {/* Diff Preview Modal */}
-      {diffPreview.operation && (
-        <DiffPreviewModal
-          isOpen={diffPreview.isOpen}
-          onClose={handleCloseDiff}
-          onApply={handleApplyDiff}
-          originalHtml={diffPreview.originalHtml}
-          previewHtml={diffPreview.previewHtml}
-          reasoning={diffPreview.reasoning}
-          operationType={diffPreview.operation.type}
-        />
-      )}
     </PageShell>
   );
 }

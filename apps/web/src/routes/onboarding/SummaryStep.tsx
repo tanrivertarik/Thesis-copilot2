@@ -36,7 +36,7 @@ export function SummaryStep() {
   const handleNext = useCallback(() => {
     void (async () => {
       if (!project) {
-        navigate('/workspace');
+        navigate('/dashboard');
         return;
       }
 
@@ -71,10 +71,10 @@ export function SummaryStep() {
 
         toast({
           status: 'success',
-          title: 'Thesis constitution generated',
-          description: 'Your workspace is ready to manage sections.'
+          title: 'Project created successfully!',
+          description: 'Your thesis constitution has been generated. You can now manage your project from the dashboard.'
         });
-        navigate('/workspace');
+        navigate('/dashboard');
       } catch (error) {
         toast({
           status: 'error',
