@@ -98,44 +98,42 @@ function AddSectionModal({ isOpen, onClose, onSave, isSaving }: AddSectionModalP
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
       <ModalOverlay />
-      <ModalContent bg="rgba(15,23,42,0.95)" border="1px solid rgba(63,131,248,0.25)">
-        <ModalHeader color="blue.100">Add outline section</ModalHeader>
-        <ModalCloseButton color="blue.200" />
+      <ModalContent bg="white" border="1px solid" borderColor="gray.200">
+        <ModalHeader color="gray.800">Add outline section</ModalHeader>
+        <ModalCloseButton />
         <ModalBody>
-          <Stack spacing={4} color="blue.50">
+          <Stack spacing={4}>
             <FormControl isRequired>
-              <FormLabel color="blue.100">Section title</FormLabel>
+              <FormLabel>Section title</FormLabel>
               <Input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="e.g., Literature Review"
-                bg="rgba(15,23,42,0.7)"
               />
             </FormControl>
             <FormControl isRequired>
-              <FormLabel color="blue.100">Objective</FormLabel>
+              <FormLabel>Objective</FormLabel>
               <Textarea
                 value={objective}
                 onChange={(event) => setObjective(event.target.value)}
                 rows={4}
                 placeholder="Define what this section should accomplish for your thesis."
-                bg="rgba(15,23,42,0.7)"
               />
             </FormControl>
             <FormControl>
-              <FormLabel color="blue.100">Target length (words)</FormLabel>
+              <FormLabel>Target length (words)</FormLabel>
               <NumberInput
                 min={0}
                 value={expectedLength}
                 onChange={(value) => setExpectedLength(value)}
               >
-                <NumberInputField bg="rgba(15,23,42,0.7)" />
+                <NumberInputField />
               </NumberInput>
             </FormControl>
           </Stack>
         </ModalBody>
         <ModalFooter>
-          <Button variant="ghost" mr={3} onClick={onClose} colorScheme="blue">
+          <Button variant="ghost" mr={3} onClick={onClose}>
             Cancel
           </Button>
           <Button
@@ -191,34 +189,38 @@ function SectionOutlineItem({ section, index, isActive, status, onSelect, wordCo
       py={3}
       borderRadius="lg"
       border="1px solid"
-      borderColor={isActive ? 'blue.400' : 'rgba(63,131,248,0.25)'}
-      bg={isActive ? 'rgba(59,130,246,0.18)' : 'rgba(15,23,42,0.65)'}
+      borderColor={isActive ? 'blue.400' : 'gray.200'}
+      bg={isActive ? 'blue.50' : 'white'}
       cursor="pointer"
       transition="all 0.2s"
       onClick={() => onSelect(section.id)}
+      _hover={{
+        borderColor: 'blue.300',
+        shadow: 'sm'
+      }}
     >
       <Stack spacing={2}>
         <Flex justify="space-between" align="center">
-          <Text fontSize="xs" color="blue.300">
+          <Text fontSize="xs" color="gray.500" fontWeight="medium">
             Section {index + 1}
           </Text>
           <Badge colorScheme={statusMeta.color} size="sm">
             {statusMeta.label}
           </Badge>
         </Flex>
-        <Text fontWeight="semibold" color="blue.100">
+        <Text fontWeight="semibold" color="gray.800">
           {section.title}
         </Text>
-        <Text color="blue.200" fontSize="sm" noOfLines={2}>
+        <Text color="gray.600" fontSize="sm" noOfLines={2}>
           {section.objective}
         </Text>
         {hasTarget && (
           <Stack spacing={1}>
-            <Flex justify="space-between" fontSize="xs" color="blue.300">
+            <Flex justify="space-between" fontSize="xs" color="gray.500">
               <Text>{wordCount} words</Text>
               <Text>{section.expectedLength} target</Text>
             </Flex>
-            <Box w="100%" h="4px" bg="rgba(15,23,42,0.8)" borderRadius="full" overflow="hidden">
+            <Box w="100%" h="4px" bg="gray.200" borderRadius="full" overflow="hidden">
               <Box
                 h="100%"
                 w={`${progress}%`}
@@ -241,24 +243,25 @@ function ReadinessChecklist({ items }: { items: ReadinessItem[] }) {
           key={item.label}
           align="flex-start"
           gap={3}
-          border="1px solid rgba(63,131,248,0.2)"
+          border="1px solid"
+          borderColor="gray.200"
           borderRadius="lg"
           px={4}
           py={3}
-          bg="rgba(15,23,42,0.7)"
+          bg="white"
         >
           <Box pt={1}>
             {item.complete ? (
-              <CheckCircleIcon color="green.300" boxSize={4} />
+              <CheckCircleIcon color="green.500" boxSize={4} />
             ) : (
-              <WarningTwoIcon color="yellow.300" boxSize={4} />
+              <WarningTwoIcon color="yellow.500" boxSize={4} />
             )}
           </Box>
           <Stack spacing={1} flex="1">
-            <Text fontWeight="semibold" color="blue.100">
+            <Text fontWeight="semibold" color="gray.800">
               {item.label}
             </Text>
-            <Text fontSize="sm" color="blue.200">
+            <Text fontSize="sm" color="gray.600">
               {item.description}
             </Text>
             {!item.complete && item.onAction && item.actionLabel ? (
@@ -711,12 +714,12 @@ export function WorkspaceHome() {
     >
       <Grid templateColumns={{ base: '1fr', lg: '280px 1fr' }} gap={6} alignItems="flex-start">
         <GridItem>
-          <Stack spacing={4} border="1px solid rgba(63,131,248,0.25)" borderRadius="xl" p={5}>
+          <Stack spacing={4} border="1px solid" borderColor="gray.200" borderRadius="xl" p={5} bg="white" shadow="sm">
             <Stack spacing={2}>
-              <Heading size="sm" color="blue.100">
+              <Heading size="sm" color="gray.800">
                 Thesis outline
               </Heading>
-              <Text fontSize="sm" color="blue.200">
+              <Text fontSize="sm" color="gray.600">
                 Create sections and track readiness before drafting.
               </Text>
             </Stack>
@@ -725,15 +728,15 @@ export function WorkspaceHome() {
               New section
             </Button>
 
-            <Divider borderColor="rgba(148, 163, 230, 0.4)" />
+            <Divider borderColor="gray.200" />
 
             {sections.length === 0 ? (
-              <Stack spacing={3} color="blue.50">
-                <Text fontWeight="semibold" color="blue.100">
+              <Stack spacing={3}>
+                <Text fontWeight="semibold" color="gray.700">
                   No sections yet
                 </Text>
-                <Text fontSize="sm" color="blue.200">
-                  Start by defining the major sections of your thesis. We’ll guide you through
+                <Text fontSize="sm" color="gray.600">
+                  Start by defining the major sections of your thesis. We'll guide you through
                   evidence and drafting once a section is selected.
                 </Text>
               </Stack>
@@ -759,14 +762,14 @@ export function WorkspaceHome() {
           {sections.length === 0 ? (
             <Stack
               spacing={4}
-              border="1px solid rgba(63,131,248,0.25)"
+              border="1px solid" borderColor="gray.200"
               borderRadius="xl"
               px={6}
               py={8}
-              bg="rgba(15,23,42,0.65)"
-              color="blue.50"
+              bg="white"
+              color="gray.700"
             >
-              <Heading size="md" color="blue.100">
+              <Heading size="md" color="gray.800">
                 Map your thesis outline
               </Heading>
               <Text>
@@ -781,29 +784,29 @@ export function WorkspaceHome() {
             <Stack spacing={6}>
               <Stack
                 spacing={4}
-                border="1px solid rgba(63,131,248,0.25)"
+                border="1px solid" borderColor="gray.200"
                 borderRadius="xl"
                 px={6}
                 py={6}
-                bg="rgba(15,23,42,0.7)"
-                color="blue.50"
+                bg="white"
+                color="gray.700"
               >
                 <Stack spacing={1}>
-                  <Text fontSize="sm" color="blue.300">
+                  <Text fontSize="sm" color="gray.500">
                     Section objective
                   </Text>
-                  <Heading size="md" color="blue.100">
+                  <Heading size="md" color="gray.800">
                     {selectedSection.title}
                   </Heading>
-                  <Text color="blue.200">{selectedSection.objective}</Text>
+                  <Text color="gray.600">{selectedSection.objective}</Text>
                   {selectedSection.expectedLength ? (
-                    <Text color="blue.300" fontSize="sm">
+                    <Text color="gray.500" fontSize="sm">
                       Target length: {selectedSection.expectedLength} words
                     </Text>
                   ) : null}
                 </Stack>
 
-                <Flex gap={6} wrap="wrap" fontSize="sm" color="blue.200">
+                <Flex gap={6} wrap="wrap" fontSize="sm" color="gray.600">
                   <Text>
                     Sources: {loadingSources ? 'Loading...' : `${readySources.length}/${sources.length} ready`}
                   </Text>
@@ -815,16 +818,16 @@ export function WorkspaceHome() {
                   </Text>
                 </Flex>
 
-                <Divider borderColor="rgba(148, 163, 230, 0.4)" />
+                <Divider borderColor="gray.200" />
 
                 <Stack spacing={4}>
-                  <Heading size="sm" color="blue.100">
+                  <Heading size="sm" color="gray.800">
                     Readiness checklist
                   </Heading>
                   <ReadinessChecklist items={readinessChecklist} />
                 </Stack>
 
-                <Divider borderColor="rgba(148, 163, 230, 0.4)" />
+                <Divider borderColor="gray.200" />
 
                 <Flex gap={3} flexWrap="wrap">
                   <Button
@@ -848,14 +851,14 @@ export function WorkspaceHome() {
                 </Flex>
 
                 {sourcesError ? (
-                  <Alert status="error" borderRadius="lg" bg="rgba(220, 38, 38, 0.12)">
+                  <Alert status="error" borderRadius="lg" bg="red.50">
                     <AlertIcon />
                     <AlertDescription>{sourcesError}</AlertDescription>
                   </Alert>
                 ) : null}
 
                 {infoMessage ? (
-                  <Alert status="info" borderRadius="lg" bg="rgba(59,130,246,0.12)" color="blue.100">
+                  <Alert status="info" borderRadius="lg" bg="blue.50" color="gray.800">
                     <AlertIcon />
                     <AlertDescription>{infoMessage}</AlertDescription>
                   </Alert>
@@ -865,33 +868,33 @@ export function WorkspaceHome() {
               {retrievalPreview.length > 0 ? (
                 <Stack
                   spacing={3}
-                  border="1px solid rgba(63,131,248,0.25)"
+                  border="1px solid" borderColor="gray.200"
                   borderRadius="xl"
                   px={6}
                   py={5}
-                  bg="rgba(59,130,246,0.08)"
-                  color="blue.50"
+                  bg="blue.50"
+                  color="gray.700"
                 >
                   <Stack spacing={1}>
-                    <Heading size="sm" color="blue.100">
+                    <Heading size="sm" color="gray.800">
                       Retrieved evidence ({retrievalPreview.length})
                     </Heading>
-                    <Text fontSize="sm" color="blue.200">
+                    <Text fontSize="sm" color="gray.600">
                       Preview of key passages that will anchor this section draft.
                     </Text>
                   </Stack>
-                  <Divider borderColor="rgba(148, 163, 230, 0.3)" />
+                  <Divider borderColor="gray.200" />
                   <Stack spacing={3}>
                     {retrievalPreview.map((chunk, index) => (
                       <Box
                         key={index}
-                        border="1px solid rgba(63,131,248,0.25)"
+                        border="1px solid" borderColor="gray.200"
                         borderRadius="lg"
                         px={4}
                         py={3}
-                        bg="rgba(15,23,42,0.85)"
+                        bg="gray.50"
                       >
-                        <Text fontSize="sm" color="blue.50">
+                        <Text fontSize="sm" color="gray.700">
                           {chunk}
                         </Text>
                       </Box>
@@ -903,17 +906,17 @@ export function WorkspaceHome() {
               {draftPreview ? (
                 <Stack
                   spacing={3}
-                  border="1px solid rgba(63,131,248,0.25)"
+                  border="1px solid" borderColor="gray.200"
                   borderRadius="xl"
                   px={6}
                   py={5}
-                  bg="rgba(15,23,42,0.7)"
-                  color="blue.50"
+                  bg="white"
+                  color="gray.700"
                 >
-                  <Heading size="sm" color="blue.100">
+                  <Heading size="sm" color="gray.800">
                     Draft preview
                   </Heading>
-                  <Divider borderColor="rgba(148, 163, 230, 0.3)" />
+                  <Divider borderColor="gray.200" />
                   <Text fontSize="sm" whiteSpace="pre-wrap">
                     {draftPreview}
                   </Text>
@@ -923,14 +926,14 @@ export function WorkspaceHome() {
           ) : (
             <Stack
               spacing={4}
-              border="1px solid rgba(63,131,248,0.25)"
+              border="1px solid" borderColor="gray.200"
               borderRadius="xl"
               px={6}
               py={8}
-              bg="rgba(15,23,42,0.65)"
-              color="blue.50"
+              bg="white"
+              color="gray.700"
             >
-              <Heading size="md" color="blue.100">
+              <Heading size="md" color="gray.800">
                 Select a section
               </Heading>
               <Text>
