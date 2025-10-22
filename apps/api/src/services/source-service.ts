@@ -298,18 +298,23 @@ export async function uploadSourceFile(
   try {
     // Read file and process based on type
     const fs = await import('fs/promises');
+    console.info(`[uploadSourceFile] Reading file for source ${sourceId}...`);
     const fileBuffer = await fs.readFile(file.filepath);
-    
+    console.info(`[uploadSourceFile] File read complete. Size: ${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+
     let extractedText: { text: string; wordCount: number };
 
     if (file.mimetype === 'application/pdf' || file.originalFilename?.toLowerCase().endsWith('.pdf')) {
+      console.info(`[uploadSourceFile] Parsing PDF for source ${sourceId}...`);
       const pdfParseFn = await loadPdfParser();
       const pdf = await pdfParseFn(fileBuffer);
       extractedText = { text: pdf.text, wordCount: pdf.text.split(/\s+/).length };
+      console.info(`[uploadSourceFile] PDF parsed. Extracted ${extractedText.wordCount} words from ${sourceId}`);
     } else {
       // Treat as text file
       const text = fileBuffer.toString('utf-8');
       extractedText = { text, wordCount: text.split(/\s+/).length };
+      console.info(`[uploadSourceFile] Text file processed. ${extractedText.wordCount} words from ${sourceId}`);
     }
 
     await db
@@ -327,13 +332,45 @@ export async function uploadSourceFile(
 
     return result;
   } catch (error) {
-    // Update source status to indicate failure
+    // Update source status to indicate failure with detailed error message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown processing error';
+    console.error(`[uploadSourceFile] Failed to process source ${sourceId}:`, errorMessage);
+
     await db
       .collection(SOURCES_COLLECTION)
       .doc(sourceId)
-      .set({ status: 'FAILED', updatedAt: new Date().toISOString() }, { merge: true });
-    
-    throw error;
+      .set({
+        status: 'FAILED',
+        updatedAt: new Date().toISOString(),
+        error: errorMessage
+      }, { merge: true });
+
+    // Provide user-friendly error messages
+    if (errorMessage.includes('pdf-parse')) {
+      throw new SourceProcessingError(
+        ErrorCode.PDF_PROCESSING_FAILED,
+        'Failed to parse PDF file. The file may be corrupted or use an unsupported format. Try re-saving the PDF or converting it to a standard format.',
+        { userId: ownerId, sourceId }
+      );
+    } else if (errorMessage.includes('memory') || errorMessage.includes('ENOMEM')) {
+      throw new SourceProcessingError(
+        ErrorCode.PDF_PROCESSING_FAILED,
+        'File is too large to process. Please split the PDF into smaller sections (e.g., by chapter) and upload them separately.',
+        { userId: ownerId, sourceId }
+      );
+    } else if (errorMessage.includes('embedding')) {
+      throw new ThesisError(
+        ErrorCode.EMBEDDING_GENERATION_FAILED,
+        'Failed to generate embeddings for the document. This may be a temporary issue. Please try again in a few moments.',
+        { userId: ownerId, sourceId }
+      );
+    }
+
+    throw new SourceProcessingError(
+      ErrorCode.SOURCE_INGESTION_FAILED,
+      `Failed to process PDF: ${errorMessage}`,
+      { userId: ownerId, sourceId }
+    );
   }
 }
 

@@ -23,6 +23,7 @@ interface FileUploadBoxProps {
 export function FileUploadBox({ projectId, onUploadComplete, disabled }: FileUploadBoxProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
   const [sourceTitle, setSourceTitle] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
@@ -44,13 +45,13 @@ export function FileUploadBox({ projectId, onUploadComplete, disabled }: FileUpl
         return;
       }
 
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
+      // Validate file size (50MB limit for large academic PDFs)
+      if (file.size > 50 * 1024 * 1024) {
         toast({
           title: 'File too large',
-          description: 'Please select a PDF file smaller than 10MB.',
+          description: 'Please select a PDF file smaller than 50MB. For larger files, consider splitting them into chapters.',
           status: 'error',
-          duration: 3000,
+          duration: 5000,
           isClosable: true
         });
         return;
@@ -58,10 +59,12 @@ export function FileUploadBox({ projectId, onUploadComplete, disabled }: FileUpl
 
       setUploading(true);
       setProgress(0);
+      setProgressMessage('Preparing upload...');
 
       try {
         // Create source record first
         const title = sourceTitle.trim() || file.name.replace('.pdf', '');
+        setProgressMessage(`Creating source record for "${title}"...`);
         const source = await createSource({
           projectId,
           kind: 'PDF',
@@ -70,11 +73,15 @@ export function FileUploadBox({ projectId, onUploadComplete, disabled }: FileUpl
           }
         });
 
-        setProgress(30);
+        setProgress(20);
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        setProgressMessage(`Uploading ${fileSizeMB}MB file...`);
 
         // Upload and process file
         const result = await uploadSourceFile(source.id, file);
+
         setProgress(100);
+        setProgressMessage('Processing complete!');
 
         toast({
           title: 'File uploaded successfully',
@@ -102,6 +109,7 @@ export function FileUploadBox({ projectId, onUploadComplete, disabled }: FileUpl
       } finally {
         setUploading(false);
         setProgress(0);
+        setProgressMessage('');
       }
     },
     [projectId, sourceTitle, onUploadComplete, toast]
@@ -147,13 +155,12 @@ export function FileUploadBox({ projectId, onUploadComplete, disabled }: FileUpl
             <Text fontSize="lg" fontWeight="medium" color="blue.600">
               Processing your PDF...
             </Text>
-            <Progress value={progress} colorScheme="blue" w="100%" />
-            <Text fontSize="sm" color="gray.600">
-              {progress < 30
-                ? 'Creating source record...'
-                : progress < 100
-                ? 'Extracting text and generating embeddings...'
-                : 'Finalizing ingestion...'}
+            <Progress value={progress} colorScheme="blue" w="100%" size="sm" borderRadius="full" />
+            <Text fontSize="sm" color="gray.600" fontWeight="medium">
+              {progressMessage || 'Processing...'}
+            </Text>
+            <Text fontSize="xs" color="gray.500">
+              Large files may take a few minutes. Please don't close this page.
             </Text>
           </>
         ) : (
@@ -180,7 +187,7 @@ export function FileUploadBox({ projectId, onUploadComplete, disabled }: FileUpl
               or drag and drop a PDF file here
             </Text>
             <Text fontSize="xs" color="gray.400">
-              Maximum file size: 10MB
+              Maximum file size: 50MB • Supports large academic PDFs (up to ~300 pages)
             </Text>
           </>
         )}

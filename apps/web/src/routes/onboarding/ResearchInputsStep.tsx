@@ -4,13 +4,20 @@ import {
   AlertIcon,
   Box,
   Button,
+  Divider,
   Flex,
   FormControl,
   FormLabel,
+  Heading,
   Icon,
   Input,
   SimpleGrid,
   Stack,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
   Text,
   Textarea,
   VStack
@@ -20,6 +27,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../shared/PageShell';
 import { useOnboarding, useOnboardingStepNavigation } from './OnboardingContext';
+import { FileUploadBox } from '../workspace/sources/FileUploadBox';
+import type { SourceIngestionResult } from '@thesis-copilot/shared';
 
 export function ResearchInputsStep() {
   const navigate = useNavigate();
@@ -33,6 +42,7 @@ export function ResearchInputsStep() {
     updateResearchDraft
   } = useOnboarding();
   const [localError, setLocalError] = useState<string | null>(null);
+  const [fileUploadResult, setFileUploadResult] = useState<SourceIngestionResult | null>(null);
 
   const attemptIngestion = useCallback(async () => {
     if (!project) {
@@ -155,47 +165,102 @@ export function ResearchInputsStep() {
             </VStack>
           </VStack>
 
-          {/* Form Fields */}
-          <VStack spacing={6} align="stretch">
-            {/* Source Title */}
-            <FormControl>
-              <Stack spacing={2}>
-                <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
-                  Source Title
-                </FormLabel>
-                <Input
-                  placeholder="E.g., Smith et al. (2023) - Social Media Effects"
-                  size="lg"
-                  value={researchDraft.title}
-                  onChange={(event) => updateResearchDraft({ title: event.target.value })}
-                  isDisabled={!project}
-                />
-              </Stack>
-            </FormControl>
+          {/* Form Fields - Tabbed Interface */}
+          <Box
+            borderWidth={1}
+            borderColor="academic.border"
+            borderRadius="lg"
+            p={6}
+            bg="academic.cardBg"
+          >
+            <Tabs colorScheme="brand" variant="enclosed">
+              <TabList>
+                <Tab>Upload PDF</Tab>
+                <Tab>Paste Text</Tab>
+              </TabList>
 
-            {/* Source Text / Notes */}
-            <FormControl>
-              <Stack spacing={2}>
-                <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
-                  Source Text or Notes
-                </FormLabel>
-                <Text color="academic.secondaryText" fontSize="sm" mb={2}>
-                  Paste a key paragraph, research abstract, or your notes. Even one good source helps!
-                </Text>
-                <Textarea
-                  rows={8}
-                  placeholder="Paste a research abstract, key findings, or your own notes..."
-                  resize="vertical"
-                  value={researchDraft.text}
-                  onChange={(event) => updateResearchDraft({ text: event.target.value })}
-                  isDisabled={!project}
-                />
-                <Text fontSize="sm" color="academic.secondaryText" fontStyle="italic">
-                  Tip: Quality over quantity. One strong source is better than generic text.
-                </Text>
-              </Stack>
-            </FormControl>
-          </VStack>
+              <TabPanels>
+                {/* PDF Upload Tab */}
+                <TabPanel px={0} py={6}>
+                  <VStack spacing={4} align="stretch">
+                    <Box>
+                      <Heading size="sm" mb={2} color="academic.primaryText">
+                        Upload Research PDF
+                      </Heading>
+                      <Text fontSize="sm" color="academic.secondaryText">
+                        Upload a PDF file of your research paper, thesis chapter, or academic source.
+                        We'll automatically extract text, generate summaries, and create searchable embeddings.
+                      </Text>
+                    </Box>
+
+                    {project && (
+                      <FileUploadBox
+                        projectId={project.id}
+                        onUploadComplete={(result) => {
+                          setFileUploadResult(result);
+                          setLocalError(null);
+                        }}
+                        disabled={!project}
+                      />
+                    )}
+
+                    {fileUploadResult && (
+                      <Alert status="success" borderRadius="lg">
+                        <AlertIcon />
+                        <AlertDescription>
+                          PDF uploaded successfully! {fileUploadResult.chunkCount} chunks created.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </VStack>
+                </TabPanel>
+
+                {/* Text Paste Tab */}
+                <TabPanel px={0} py={6}>
+                  <VStack spacing={6} align="stretch">
+                    {/* Source Title */}
+                    <FormControl>
+                      <Stack spacing={2}>
+                        <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
+                          Source Title
+                        </FormLabel>
+                        <Input
+                          placeholder="E.g., Smith et al. (2023) - Social Media Effects"
+                          size="lg"
+                          value={researchDraft.title}
+                          onChange={(event) => updateResearchDraft({ title: event.target.value })}
+                          isDisabled={!project}
+                        />
+                      </Stack>
+                    </FormControl>
+
+                    {/* Source Text / Notes */}
+                    <FormControl>
+                      <Stack spacing={2}>
+                        <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
+                          Source Text or Notes
+                        </FormLabel>
+                        <Text color="academic.secondaryText" fontSize="sm" mb={2}>
+                          Paste a key paragraph, research abstract, or your notes. Even one good source helps!
+                        </Text>
+                        <Textarea
+                          rows={8}
+                          placeholder="Paste a research abstract, key findings, or your own notes..."
+                          resize="vertical"
+                          value={researchDraft.text}
+                          onChange={(event) => updateResearchDraft({ text: event.target.value })}
+                          isDisabled={!project}
+                        />
+                        <Text fontSize="sm" color="academic.secondaryText" fontStyle="italic">
+                          Tip: Quality over quantity. One strong source is better than generic text.
+                        </Text>
+                      </Stack>
+                    </FormControl>
+                  </VStack>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+          </Box>
 
           {/* Form Actions */}
           <Stack direction={{ base: 'column', md: 'row' }} spacing={4} pt={4}>
@@ -207,16 +272,19 @@ export function ResearchInputsStep() {
                 isDisabled={!project || ingesting}
                 size="lg"
               >
-                Add source & continue
+                Add text source & continue
               </Button>
             )}
             <Button
-              variant="outline"
+              colorScheme="brand"
+              variant={fileUploadResult || ingestionResult ? 'solid' : 'outline'}
               onClick={() => navigate('/onboarding/summary')}
               isDisabled={ingesting}
               size="lg"
             >
-              {researchDraft.text.trim() ? 'Skip & continue' : 'Continue without sources'}
+              {fileUploadResult || ingestionResult || researchDraft.text.trim()
+                ? 'Continue to summary'
+                : 'Continue without sources'}
             </Button>
             <Button
               variant="ghost"
