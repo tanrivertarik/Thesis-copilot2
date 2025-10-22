@@ -129,7 +129,7 @@ const CONSTITUTION_REFINEMENT_PROMPT = `You are refining an existing thesis cons
 
 Return the updated constitution in the same JSON format, maintaining all required fields while reflecting the requested improvements.`;
 
-const GENERATION_MODEL = 'anthropic/claude-3.5-sonnet';
+const GENERATION_MODEL = 'google/gemini-2.5-flash';
 
 function extractJsonPayload(rawOutput: string): string {
   const trimmed = rawOutput.trim();

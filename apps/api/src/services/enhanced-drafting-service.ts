@@ -85,8 +85,8 @@ class EnhancedDraftingService {
         model: 'google/gemini-2.5-flash',
         systemPrompt: ENHANCED_DRAFTING_SYSTEM_PROMPT,
         userPrompt: prompt,
-        temperature: 0.3,
-        maxTokens: Math.min(1500, request.maxTokens || 800)
+        temperature: 0.7,
+        maxTokens: Math.min(128000, request.maxTokens || 128000)
       });
 
       // Extract and clean the draft content

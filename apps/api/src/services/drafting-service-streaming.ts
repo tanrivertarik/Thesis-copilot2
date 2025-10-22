@@ -87,11 +87,15 @@ Source Evidence:
 ${chunkContext}
 
 Instructions:
-- Produce between 2 and 4 paragraphs unless otherwise implied by section goal.
+- Write deeply and comprehensively. Aim for substantial content (minimum 800-1200 words).
+- Develop ideas thoroughly with detailed explanations, analysis, and examples.
+- Produce multiple well-developed paragraphs (typically 5-8 paragraphs).
 - Reference specific evidence with [CITE:{chunkId}].
 - Do not invent citations or mention source IDs not listed above.
-- Mention uncertainties or gaps explicitly.
+- Elaborate on key concepts rather than summarizing briefly.
+- Include transitions between ideas and build arguments progressively.
 - Use proper academic formatting with clear paragraph breaks.
+- Write until you have fully explored the section objective - don't stop early.
 `;
 
     if (!env.openRouterApiKey) {
@@ -120,7 +124,7 @@ Instructions:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         temperature: 0.7,
-        max_tokens: request.maxTokens ?? 600,
+        max_tokens: request.maxTokens ?? 4000,  // Increased default from 600 to 4000 for deeper writing
         stream: true, // Enable streaming
         messages: [
           { role: 'system', content: systemPrompt },

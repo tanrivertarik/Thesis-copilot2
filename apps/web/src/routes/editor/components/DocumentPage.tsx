@@ -10,6 +10,7 @@ type DocumentPageProps = {
 /**
  * DocumentPage component that styles content to look like a professional
  * document page (similar to Google Docs) with A4 dimensions, margins, and shadows.
+ * Content flows continuously with visual page break indicators.
  */
 export function DocumentPage({ children, showPageNumbers = true, pageNumber = 1 }: DocumentPageProps) {
   return (
@@ -23,17 +24,28 @@ export function DocumentPage({ children, showPageNumbers = true, pageNumber = 1 
       justifyContent="center"
     >
       <Box
-        // White page with A4-like dimensions (allowing multi-page)
+        // White page with A4-like dimensions (grows for multi-page content)
         bg="white"
         width="100%"
         maxWidth="21cm" // A4 width
-        minHeight="29.7cm" // A4 height (but can grow for multi-page)
+        minHeight="29.7cm" // A4 height (but grows as needed)
         boxShadow="0 0 8px rgba(0, 0, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.08)"
         borderRadius="2px"
-        // Page margins (2.54cm = 1 inch on all sides for academic papers)
         padding="2.54cm"
         position="relative"
         sx={{
+          // Visual page breaks every 29.7cm (A4 height)
+          backgroundImage: `
+            repeating-linear-gradient(
+              to bottom,
+              transparent 0,
+              transparent calc(29.7cm - 2.54cm - 2.54cm - 1px),
+              #e2e8f0 calc(29.7cm - 2.54cm - 2.54cm - 1px),
+              #e2e8f0 calc(29.7cm - 2.54cm - 2.54cm + 1px),
+              transparent calc(29.7cm - 2.54cm - 2.54cm + 1px),
+              transparent 29.7cm
+            )
+          `,
           // Academic paper typography
           fontFamily: '"Times New Roman", Times, serif',
           fontSize: '12pt',
@@ -162,25 +174,7 @@ export function DocumentPage({ children, showPageNumbers = true, pageNumber = 1 
       >
         {children}
 
-        {/* Page number (bottom center) */}
-        {showPageNumbers && (
-          <Text
-            position="absolute"
-            bottom="1.5cm"
-            left="50%"
-            transform="translateX(-50%)"
-            fontSize="10pt"
-            color="gray.600"
-            fontFamily='"Times New Roman", Times, serif'
-            sx={{
-              '@media print': {
-                color: 'black'
-              }
-            }}
-          >
-            {pageNumber}
-          </Text>
-        )}
+        {/* Page number is now handled by page count in toolbar */}
       </Box>
     </Box>
   );

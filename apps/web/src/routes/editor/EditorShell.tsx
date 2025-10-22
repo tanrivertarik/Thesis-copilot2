@@ -700,7 +700,7 @@ function EditorInnerShell() {
             text: chunk.text,
             metadata: chunk.metadata
           })),
-          maxTokens: 600
+          maxTokens: 50000 // Increased to allow ~3000 words per section for deep writing
         });
 
         console.log('[Auto-Generate] Draft generation completed successfully');
@@ -895,7 +895,7 @@ function EditorInnerShell() {
             text: chunk.text,
             metadata: chunk.metadata
           })),
-          maxTokens: 600
+          maxTokens: 4000  // Increased to allow ~3000 words per section for deep writing
         });
 
         console.log('[Auto-Generate] Draft generation completed successfully');
@@ -1144,7 +1144,7 @@ function EditorInnerShell() {
             coreArgument: project.constitution?.coreArgument
           },
           citations,
-          maxTokens: 2048  // Increased to 2048 to handle complex commands like "write one more page"
+          maxTokens: 100000  // Increased to 2048 to handle complex commands like "write one more page"
         });
 
         // Apply changes directly to editor with highlighting
@@ -1237,13 +1237,19 @@ function EditorInnerShell() {
       // Remove paragraph-level diff attributes and styles
       const cleanHtml = currentHtml
         // Remove deleted paragraphs entirely
-        .replace(/<p[^>]*data-diff="deletion"[^>]*>.*?<\/p>/g, '')
+        .replace(/<p[^>]*data-diff="deletion"[^>]*>.*?<\/p>/gs, '')
         // Keep addition paragraphs but remove diff attributes and styles
         .replace(/<p([^>]*)data-diff="addition"([^>]*)style="[^"]*"([^>]*)>/g, '<p$1$2$3>')
         .replace(/data-diff="addition"/g, '')
-        // Also handle span-level diffs (legacy)
-        .replace(/<span data-diff="deletion">.*?<\/span>/g, '') // Remove deleted text
-        .replace(/<span data-diff="addition">(.*?)<\/span>/g, '$1'); // Keep added text, remove highlights
+        // Handle span-level diffs with data-diff attribute
+        .replace(/<span[^>]*data-diff="deletion"[^>]*>.*?<\/span>/gs, '') // Remove deleted text
+        .replace(/<span[^>]*data-diff="addition"[^>]*>(.*?)<\/span>/gs, '$1') // Keep added text, remove highlights
+        // Handle spans with strikethrough styling (text-decoration: line-through)
+        .replace(/<span[^>]*style="[^"]*text-decoration:\s*line-through[^"]*"[^>]*>.*?<\/span>/gs, '')
+        // Handle <s> or <del> tags (strikethrough HTML elements)
+        .replace(/<(s|del)[^>]*>.*?<\/(s|del)>/gs, '')
+        // Remove any remaining deletion markers
+        .replace(/<span[^>]*class="[^"]*deletion[^"]*"[^>]*>.*?<\/span>/gs, '')
 
       editor.commands.setContent(cleanHtml);
       setHtml(cleanHtml);

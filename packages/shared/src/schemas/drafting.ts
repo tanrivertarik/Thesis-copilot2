@@ -24,7 +24,7 @@ export const SectionDraftRequestSchema = z.object({
       metadata: true
     })
   ),
-  maxTokens: z.number().int().positive().max(2048).default(800)
+  maxTokens: z.number().int().positive().max(100000).default(100000)
 });
 
 export const SectionDraftResponseSchema = z.object({

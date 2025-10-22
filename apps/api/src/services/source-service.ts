@@ -464,7 +464,7 @@ async function processIngestionWithExtractedText({
   const wordCount = extractedText.wordCount;
 
   const summaryResponse = await generateChatCompletion({
-    model: 'openai/gpt-4o-mini',
+    model: 'google/gemini-2.5-flash',
     systemPrompt: `You are an expert academic research assistant. Your task is to create high-quality summaries of academic sources that will help thesis writers understand and cite the content effectively.
 
 Guidelines:
@@ -492,7 +492,7 @@ Return JSON with this exact structure:
     "Key insight or finding #4"
   ]
 }`,
-    maxTokens: 20000,
+    maxTokens: 200000,
     temperature: 0.7
   });
 
