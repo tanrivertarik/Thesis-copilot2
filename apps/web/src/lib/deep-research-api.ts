@@ -141,15 +141,13 @@ export async function ingestAcademicPaper(
   projectId: string,
   paper: AcademicPaper
 ): Promise<IngestionResult> {
-  const response = await request<{ data: IngestionResult }>(
+  return await request<IngestionResult>(
     '/api/research/ingest/paper',
     {
       method: 'POST',
       body: JSON.stringify({ projectId, paper })
     }
   );
-
-  return response.data;
 }
 
 /**
@@ -159,7 +157,7 @@ export async function ingestMultiplePapers(
   projectId: string,
   papers: AcademicPaper[]
 ): Promise<IngestionResult[]> {
-  const response = await request<{ data: { results: IngestionResult[] } }>(
+  const response = await request<{ results: IngestionResult[] }>(
     '/api/research/ingest/papers',
     {
       method: 'POST',
@@ -167,7 +165,7 @@ export async function ingestMultiplePapers(
     }
   );
 
-  return response.data.results;
+  return response.results;
 }
 
 /**
@@ -177,13 +175,11 @@ export async function ingestWebPage(
   projectId: string,
   url: string
 ): Promise<IngestionResult> {
-  const response = await request<{ data: IngestionResult }>(
+  return await request<IngestionResult>(
     '/api/research/ingest/webpage',
     {
       method: 'POST',
       body: JSON.stringify({ projectId, url })
     }
   );
-
-  return response.data;
 }
