@@ -6,6 +6,7 @@ export type OnboardingStep = {
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   { path: '/onboarding', label: 'Overview' },
   { path: '/onboarding/start', label: 'Project basics' },
+  { path: '/onboarding/research', label: 'Deep research' },
   { path: '/onboarding/sources', label: 'Research inputs' },
   { path: '/onboarding/summary', label: 'Review' }
 ];

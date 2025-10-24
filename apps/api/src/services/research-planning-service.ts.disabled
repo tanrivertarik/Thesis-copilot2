@@ -1,0 +1,208 @@
+import { generateChatCompletion } from '../ai/openrouter.js';
+import { ValidationError, ErrorCode, ThesisError } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
+
+export type SubQuestion = {
+  id: string;
+  question: string;
+  searchQueries: string[];
+  expectedSources: string[];
+};
+
+export type ResearchPlan = {
+  id: string;
+  mainQuestion: string;
+  subQuestions: SubQuestion[];
+  createdAt: string;
+};
+
+/**
+ * Generate a comprehensive research plan by breaking down a complex query
+ * into manageable sub-questions with specific search strategies.
+ */
+export async function generateResearchPlan(
+  userQuery: string,
+  thesisContext: {
+    scope?: string;
+    coreArgument?: string;
+    toneGuidelines?: string;
+  }
+): Promise<ResearchPlan> {
+  if (!userQuery || userQuery.trim().length === 0) {
+    throw new ValidationError(
+      ErrorCode.MISSING_REQUIRED_FIELD,
+      'Research query is required',
+      { query: userQuery }
+    );
+  }
+
+  logger.info('Generating research plan', { query: userQuery });
+
+  const systemPrompt = `You are an expert research planner for academic thesis writing.
+Your task is to analyze research questions and break them down into focused, answerable sub-questions.
+
+For each sub-question, you should:
+1. Make it specific and focused (not too broad)
+2. Identify 2-3 search queries that would find relevant information
+3. Specify what types of sources would be most valuable
+
+Output must be valid JSON only, no additional text.`;
+
+  const userPrompt = `
+Research Query: "${userQuery}"
+
+Thesis Context:
+${thesisContext.scope ? `- Scope: ${thesisContext.scope}` : ''}
+${thesisContext.coreArgument ? `- Core Argument: ${thesisContext.coreArgument}` : ''}
+${thesisContext.toneGuidelines ? `- Tone: ${thesisContext.toneGuidelines}` : ''}
+
+Break this down into 5-8 focused sub-questions that together would comprehensively answer the main research question.
+
+Generate a JSON response with this exact structure:
+{
+  "mainQuestion": "Clear restatement of the research question",
+  "subQuestions": [
+    {
+      "id": "sq1",
+      "question": "Specific sub-question",
+      "searchQueries": [
+        "academic search query 1",
+        "web search query 2"
+      ],
+      "expectedSources": [
+        "academic papers",
+        "meta-analyses",
+        "case studies",
+        "statistics",
+        "expert blogs"
+      ]
+    }
+  ]
+}
+
+Important:
+- Generate 5-8 sub-questions
+- Each sub-question should be answerable independently
+- Search queries should be optimized for finding quality sources
+- Return ONLY valid JSON, no markdown code blocks or extra text
+`;
+
+  try {
+    const response = await generateChatCompletion({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.3,
+      maxTokens: 3000
+    });
+
+    // Extract JSON from response (handle potential markdown code blocks)
+    let jsonText = response.output.trim();
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?/g, '');
+    }
+
+    const planData = JSON.parse(jsonText);
+
+    // Validate structure
+    if (!planData.mainQuestion || !Array.isArray(planData.subQuestions)) {
+      throw new Error('Invalid plan structure');
+    }
+
+    // Create plan with metadata
+    const plan: ResearchPlan = {
+      id: `plan_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      mainQuestion: planData.mainQuestion,
+      subQuestions: planData.subQuestions.map((sq: any, index: number) => ({
+        id: sq.id || `sq${index + 1}`,
+        question: sq.question,
+        searchQueries: sq.searchQueries || [],
+        expectedSources: sq.expectedSources || []
+      })),
+      createdAt: new Date().toISOString()
+    };
+
+    logger.info('Research plan generated successfully', {
+      planId: plan.id,
+      subQuestionCount: plan.subQuestions.length
+    });
+
+    return plan;
+  } catch (error) {
+    logger.error('Failed to generate research plan', { error, query: userQuery });
+
+    if (error instanceof SyntaxError) {
+      throw new ThesisError(
+        ErrorCode.AI_GENERATION_FAILED,
+        'Failed to parse AI-generated research plan. Please try again.',
+        { query: userQuery, error: error.message }
+      );
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Refine an existing research plan based on user feedback
+ */
+export async function refineResearchPlan(
+  existingPlan: ResearchPlan,
+  userFeedback: string
+): Promise<ResearchPlan> {
+  logger.info('Refining research plan', { planId: existingPlan.id, feedback: userFeedback });
+
+  const systemPrompt = `You are an expert research planner. Refine the existing research plan based on user feedback.
+Output must be valid JSON only, no additional text.`;
+
+  const userPrompt = `
+Current Research Plan:
+Main Question: ${existingPlan.mainQuestion}
+
+Sub-Questions:
+${existingPlan.subQuestions.map((sq, i) => `${i + 1}. ${sq.question}`).join('\n')}
+
+User Feedback: "${userFeedback}"
+
+Refine the plan according to the feedback. Return the complete updated plan in the same JSON format:
+{
+  "mainQuestion": "...",
+  "subQuestions": [...]
+}
+
+Return ONLY valid JSON, no markdown code blocks.
+`;
+
+  try {
+    const response = await generateChatCompletion({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.3,
+      maxTokens: 3000
+    });
+
+    let jsonText = response.output.trim();
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?/g, '');
+    }
+
+    const planData = JSON.parse(jsonText);
+
+    const refinedPlan: ResearchPlan = {
+      ...existingPlan,
+      mainQuestion: planData.mainQuestion,
+      subQuestions: planData.subQuestions.map((sq: any, index: number) => ({
+        id: sq.id || `sq${index + 1}`,
+        question: sq.question,
+        searchQueries: sq.searchQueries || [],
+        expectedSources: sq.expectedSources || []
+      }))
+    };
+
+    logger.info('Research plan refined successfully', { planId: refinedPlan.id });
+
+    return refinedPlan;
+  } catch (error) {
+    logger.error('Failed to refine research plan', { error, planId: existingPlan.id });
+    throw error;
+  }
+}

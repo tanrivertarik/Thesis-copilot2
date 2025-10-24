@@ -3,6 +3,9 @@ import admin from 'firebase-admin';
 import type { AuthedRequest } from '../types.js';
 import { env } from '../config/env.js';
 
+// Re-export AuthedRequest for use in routes
+export type { AuthedRequest };
+
 type JwtHeader = {
   alg?: string;
 };

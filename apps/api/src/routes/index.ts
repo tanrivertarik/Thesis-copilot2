@@ -7,6 +7,7 @@ import { draftingStreamRouter } from './drafting-stream.js';
 import { draftsRouter } from './drafts.js';
 import { constitutionRouter } from './constitution.js';
 import { exportRouter } from './export.js';
+import deepResearchRouter from './deep-research-routes.js';
 
 export function registerRoutes(app: Express) {
   app.get('/', (_req, res) => {
@@ -24,4 +25,5 @@ export function registerRoutes(app: Express) {
   app.use('/api', draftsRouter);
   app.use('/api/projects', constitutionRouter);
   app.use('/api', exportRouter);
+  app.use('/api/research', deepResearchRouter);
 }

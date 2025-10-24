@@ -24,7 +24,7 @@ import { firebaseApp } from '../app/providers/firebase/app-instance';
 
 const API_BASE_URL = env.apiBaseUrl;
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getIdToken();
   if (!token) {
     await getAuth(firebaseApp).signOut();

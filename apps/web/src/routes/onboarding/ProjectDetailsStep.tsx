@@ -70,7 +70,7 @@ export function ProjectDetailsStep() {
     event.preventDefault();
     const ok = await persistProject();
     if (ok) {
-      navigate('/onboarding/sources');
+      navigate('/onboarding/research');
     }
   };
 
@@ -82,7 +82,7 @@ export function ProjectDetailsStep() {
   const handleNext = useCallback(async () => {
     const ok = await persistProject();
     if (ok) {
-      navigate('/onboarding/sources');
+      navigate('/onboarding/research');
     }
     return false;
   }, [navigate, persistProject]);

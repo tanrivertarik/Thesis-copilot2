@@ -4,6 +4,7 @@ import { LandingScene } from './home/LandingScene';
 import { OnboardingLayout } from './onboarding/OnboardingLayout';
 import { OnboardingOverview } from './onboarding/OnboardingOverview';
 import { ProjectDetailsStep } from './onboarding/ProjectDetailsStep';
+import { DeepResearchStep } from './onboarding/DeepResearchStep';
 import { ResearchInputsStep } from './onboarding/ResearchInputsStep';
 import { SummaryStep } from './onboarding/SummaryStep';
 import { Dashboard } from './dashboard/Dashboard';
@@ -49,6 +50,10 @@ const router = createBrowserRouter([
           {
             path: 'start',
             element: <ProjectDetailsStep />
+          },
+          {
+            path: 'research',
+            element: <DeepResearchStep />
           },
           {
             path: 'sources',
