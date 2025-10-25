@@ -158,9 +158,9 @@ export function DeepResearchStep() {
     }
   };
 
-  // Step 3: Search for academic papers with rate limiting
+  // Step 3: Search for academic papers with rate limiting and AI relevance filtering
   const handleSearchPapers = async () => {
-    if (!researchPlan) return;
+    if (!researchPlan || !project) return;
 
     setStatus('searching-papers');
     setSearchProgress(0);
@@ -174,6 +174,12 @@ export function DeepResearchStep() {
       );
       let completed = 0;
 
+      // Research context for AI relevance filtering
+      const researchContext = {
+        mainQuery: researchPlan.mainQuestion,
+        domain: project.topic // e.g., "AI-powered employee well-being monitoring platform"
+      };
+
       // Search for each sub-question's queries with rate limiting
       for (const subQuestion of researchPlan.subQuestions) {
         for (const searchQuery of subQuestion.searchQueries) {
@@ -183,10 +189,14 @@ export function DeepResearchStep() {
               await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
-            const results = await searchAcademicPapers(searchQuery, {
-              limit: 10, // Increased from 5 to get more papers per query
-              minCitations: 10 // Balanced - not too high to exclude recent work
-            });
+            const results = await searchAcademicPapers(
+              searchQuery,
+              {
+                limit: 10, // Increased from 5 to get more papers per query
+                minCitations: 10 // Balanced - not too high to exclude recent work
+              },
+              researchContext // Pass research context for AI filtering
+            );
             allPapers.push(...results);
             completed++;
             setSearchProgress((completed / totalQueries) * 100);

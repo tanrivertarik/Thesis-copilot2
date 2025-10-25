@@ -12,6 +12,10 @@ import {
   type AcademicPaper
 } from '../services/semantic-scholar-service.js';
 import {
+  scoreRelevance,
+  filterByRelevance
+} from '../services/paper-relevance-service.js';
+import {
   scrapeWebPage,
   scrapeMultiplePages
 } from '../services/web-scraping-service.js';
@@ -115,12 +119,12 @@ router.post(
 
 /**
  * POST /api/research/search/academic
- * Search for academic papers using Semantic Scholar
+ * Search for academic papers using Semantic Scholar with AI relevance filtering
  */
 router.post(
   '/search/academic',
   asyncHandler(async (req: AuthedRequest, res: Response) => {
-    const { query, options = {} } = req.body;
+    const { query, options = {}, researchContext } = req.body;
 
     if (!query || typeof query !== 'string') {
       return res.status(400).json({
@@ -128,15 +132,39 @@ router.post(
       });
     }
 
-    logger.info('Searching academic papers');
+    logger.info('Searching academic papers with AI relevance filtering');
 
+    // Step 1: Search Semantic Scholar
     const papers = await searchSemanticScholar(query, options);
+
+    // Step 2: AI relevance filtering (if research context provided)
+    let filteredPapers = papers;
+    if (researchContext?.mainQuery && researchContext?.domain && papers.length > 0) {
+      try {
+        const relevanceScores = await scoreRelevance(
+          papers,
+          researchContext.mainQuery,
+          researchContext.domain
+        );
+
+        filteredPapers = filterByRelevance(papers, relevanceScores, 6);
+
+        logger.info('AI relevance filtering applied', {
+          originalCount: papers.length,
+          filteredCount: filteredPapers.length,
+          removedCount: papers.length - filteredPapers.length
+        });
+      } catch (error) {
+        logger.error('AI relevance filtering failed, returning all papers', error);
+        // If AI filtering fails, return all papers (fail open)
+      }
+    }
 
     res.json({
       success: true,
       data: {
-        papers,
-        count: papers.length
+        papers: filteredPapers,
+        count: filteredPapers.length
       }
     });
   })

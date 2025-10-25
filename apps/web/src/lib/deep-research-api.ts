@@ -81,7 +81,7 @@ export async function refineResearchPlan(
 }
 
 /**
- * Search for academic papers using Semantic Scholar
+ * Search for academic papers using Semantic Scholar with AI relevance filtering
  */
 export async function searchAcademicPapers(
   query: string,
@@ -90,13 +90,17 @@ export async function searchAcademicPapers(
     minCitations?: number;
     yearFrom?: number;
     yearTo?: number;
+  },
+  researchContext?: {
+    mainQuery: string;
+    domain: string;
   }
 ): Promise<AcademicPaper[]> {
   const response = await request<{ papers: AcademicPaper[] }>(
     '/api/research/search/academic',
     {
       method: 'POST',
-      body: JSON.stringify({ query, options })
+      body: JSON.stringify({ query, options, researchContext })
     }
   );
 
