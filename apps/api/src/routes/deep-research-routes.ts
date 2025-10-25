@@ -29,12 +29,12 @@ router.use(authMiddleware);
 
 /**
  * POST /api/research/plan
- * Generate a research plan from a user query
+ * Generate a research plan from a user query with project context
  */
 router.post(
   '/plan',
   asyncHandler(async (req: AuthedRequest, res: Response) => {
-    const { query, thesisContext } = req.body;
+    const { query, projectId } = req.body;
 
     if (!query || typeof query !== 'string') {
       return res.status(400).json({
@@ -42,9 +42,26 @@ router.post(
       });
     }
 
-    logger.info('Generating research plan');
+    logger.info('Generating research plan with project context');
 
-    const plan = await generateResearchPlan(query, thesisContext || {});
+    // Fetch project context if projectId is provided
+    let thesisContext = {};
+    if (projectId) {
+      const { getFirestore } = await import('firebase-admin/firestore');
+      const db = getFirestore();
+      const projectDoc = await db.collection('projects').doc(projectId).get();
+
+      if (projectDoc.exists) {
+        const project = projectDoc.data();
+        thesisContext = {
+          topic: project?.topic,
+          researchQuestions: project?.researchQuestions,
+          thesisStatement: project?.thesisStatement
+        };
+      }
+    }
+
+    const plan = await generateResearchPlan(query, thesisContext);
 
     res.json({
       success: true,
@@ -55,12 +72,12 @@ router.post(
 
 /**
  * POST /api/research/plan/:planId/refine
- * Refine an existing research plan based on user feedback
+ * Refine an existing research plan based on user feedback with project context
  */
 router.post(
   '/plan/:planId/refine',
   asyncHandler(async (req: AuthedRequest, res: Response) => {
-    const { feedback, existingPlan } = req.body;
+    const { feedback, existingPlan, projectId } = req.body;
 
     if (!feedback || !existingPlan) {
       return res.status(400).json({
@@ -68,9 +85,26 @@ router.post(
       });
     }
 
-    logger.info('Refining research plan');
+    logger.info('Refining research plan with project context');
 
-    const refinedPlan = await refineResearchPlan(existingPlan, feedback);
+    // Fetch project context if projectId is provided
+    let thesisContext;
+    if (projectId) {
+      const { getFirestore } = await import('firebase-admin/firestore');
+      const db = getFirestore();
+      const projectDoc = await db.collection('projects').doc(projectId).get();
+
+      if (projectDoc.exists) {
+        const project = projectDoc.data();
+        thesisContext = {
+          topic: project?.topic,
+          researchQuestions: project?.researchQuestions,
+          thesisStatement: project?.thesisStatement
+        };
+      }
+    }
+
+    const refinedPlan = await refineResearchPlan(existingPlan, feedback, thesisContext);
 
     res.json({
       success: true,

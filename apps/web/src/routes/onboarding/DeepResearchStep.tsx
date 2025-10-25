@@ -74,9 +74,19 @@ export function DeepResearchStep() {
       return;
     }
 
+    if (!project) {
+      toast({
+        title: 'No project found',
+        description: 'Please complete project setup first',
+        status: 'error',
+        duration: 3000
+      });
+      return;
+    }
+
     setStatus('generating-plan');
     try {
-      const plan = await generateResearchPlan(query);
+      const plan = await generateResearchPlan(query, project.id);
       console.log('Received plan:', plan);
 
       if (!plan || !plan.subQuestions) {
@@ -109,12 +119,23 @@ export function DeepResearchStep() {
       return;
     }
 
+    if (!project) {
+      toast({
+        title: 'No project found',
+        description: 'Please complete project setup first',
+        status: 'error',
+        duration: 3000
+      });
+      return;
+    }
+
     setStatus('generating-plan');
     try {
       const refinedPlan = await refineResearchPlan(
         researchPlan.id,
         researchPlan,
-        refinementFeedback
+        refinementFeedback,
+        project.id
       );
       setResearchPlan(refinedPlan);
       setRefinementFeedback('');
@@ -137,7 +158,7 @@ export function DeepResearchStep() {
     }
   };
 
-  // Step 3: Search for academic papers
+  // Step 3: Search for academic papers with rate limiting
   const handleSearchPapers = async () => {
     if (!researchPlan) return;
 
@@ -153,19 +174,27 @@ export function DeepResearchStep() {
       );
       let completed = 0;
 
-      // Search for each sub-question's queries
+      // Search for each sub-question's queries with rate limiting
       for (const subQuestion of researchPlan.subQuestions) {
         for (const searchQuery of subQuestion.searchQueries) {
           try {
+            // Add 3 second delay between requests to respect Semantic Scholar's rate limits
+            if (completed > 0) {
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+
             const results = await searchAcademicPapers(searchQuery, {
-              limit: 5,
-              minCitations: 10
+              limit: 10, // Increased from 5 to get more papers per query
+              minCitations: 10 // Balanced - not too high to exclude recent work
             });
             allPapers.push(...results);
             completed++;
             setSearchProgress((completed / totalQueries) * 100);
           } catch (error) {
             console.error(`Search failed for query: ${searchQuery}`, error);
+            completed++;
+            setSearchProgress((completed / totalQueries) * 100);
+            // Continue with other queries even if one fails
           }
         }
       }
@@ -175,17 +204,27 @@ export function DeepResearchStep() {
         new Map(allPapers.map(p => [p.id, p])).values()
       );
 
-      // Sort by citation count
+      // Sort by citation count (descending)
       uniquePapers.sort((a, b) => b.citationCount - a.citationCount);
 
       setPapers(uniquePapers);
       setStatus('papers-ready');
-      toast({
-        title: 'Papers found',
-        description: `Found ${uniquePapers.length} relevant academic papers`,
-        status: 'success',
-        duration: 3000
-      });
+
+      if (uniquePapers.length === 0) {
+        toast({
+          title: 'No papers found',
+          description: 'Try refining your research query or reducing minimum citations',
+          status: 'warning',
+          duration: 5000
+        });
+      } else {
+        toast({
+          title: 'Papers found',
+          description: `Found ${uniquePapers.length} relevant academic papers`,
+          status: 'success',
+          duration: 3000
+        });
+      }
     } catch (error) {
       console.error('Paper search failed:', error);
       toast({
@@ -410,6 +449,7 @@ export function DeepResearchStep() {
                       </Button>
                       <Button size="sm" colorScheme="green" onClick={handleSearchPapers}>
                         Looks Good - Search Papers
+                        {researchPlan && ` (${researchPlan.subQuestions.reduce((sum, sq) => sum + sq.searchQueries.length, 0)} queries)`}
                       </Button>
                     </HStack>
                   </VStack>

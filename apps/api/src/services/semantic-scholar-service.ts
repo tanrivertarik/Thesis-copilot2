@@ -87,14 +87,34 @@ export async function searchSemanticScholar(
       return [];
     }
 
-    // Filter and transform results
+    // Extract query keywords for relevance scoring
+    const queryKeywords = query.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+
+    // Filter and transform results with relevance scoring
     const papers: AcademicPaper[] = data.data
       .filter((paper: any) => {
         // Filter by minimum citations
         if (paper.citationCount < minCitations) {
           return false;
         }
-        // Prefer papers with PDFs, but don't require them
+
+        // Relevance check: title and abstract must contain at least 1 query keyword
+        if (paper.title || paper.abstract) {
+          const paperText = `${paper.title || ''} ${paper.abstract || ''}`.toLowerCase();
+          const matchCount = queryKeywords.filter(keyword => paperText.includes(keyword)).length;
+
+          // Require at least 20% of keywords to match (or at least 1 for very short queries)
+          const minMatches = Math.max(1, Math.ceil(queryKeywords.length * 0.2));
+          if (matchCount < minMatches) {
+            logger.debug('Filtering out irrelevant paper', {
+              title: paper.title,
+              matchCount,
+              requiredMatches: minMatches
+            });
+            return false;
+          }
+        }
+
         return true;
       })
       .map((paper: any) => ({

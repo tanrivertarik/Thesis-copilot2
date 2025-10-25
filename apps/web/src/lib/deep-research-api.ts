@@ -50,35 +50,32 @@ export type IngestionResult = {
 };
 
 /**
- * Generate a research plan from a user query
+ * Generate a research plan from a user query with project context
  */
 export async function generateResearchPlan(
   query: string,
-  thesisContext?: {
-    scope?: string;
-    coreArgument?: string;
-    toneGuidelines?: string;
-  }
+  projectId?: string
 ): Promise<ResearchPlan> {
   return await request<ResearchPlan>('/api/research/plan', {
     method: 'POST',
-    body: JSON.stringify({ query, thesisContext })
+    body: JSON.stringify({ query, projectId })
   });
 }
 
 /**
- * Refine an existing research plan based on user feedback
+ * Refine an existing research plan based on user feedback with project context
  */
 export async function refineResearchPlan(
   planId: string,
   existingPlan: ResearchPlan,
-  feedback: string
+  feedback: string,
+  projectId?: string
 ): Promise<ResearchPlan> {
   return await request<ResearchPlan>(
     `/api/research/plan/${planId}/refine`,
     {
       method: 'POST',
-      body: JSON.stringify({ existingPlan, feedback })
+      body: JSON.stringify({ existingPlan, feedback, projectId })
     }
   );
 }
