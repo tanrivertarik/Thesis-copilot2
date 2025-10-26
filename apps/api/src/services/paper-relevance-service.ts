@@ -82,11 +82,11 @@ Return ONLY the JSON array, no additional text.`;
 
       const response = await generateChatCompletion(
         {
-          model: 'google/gemini-flash-1.5-8b',
+          model: 'google/gemini-2.5-flash',
           systemPrompt,
           userPrompt,
-          temperature: 0.3, // Low temperature for consistent scoring
-          maxTokens: 2000
+          temperature: 0.7, // Low temperature for consistent scoring
+          maxTokens: 100000
         },
         { additionalData: { batchIndex: i / batchSize, batchSize: batch.length } }
       );

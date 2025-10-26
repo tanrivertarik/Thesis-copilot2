@@ -4,7 +4,6 @@ import {
   HStack,
   VStack,
   Badge,
-  Checkbox,
   Icon,
   Link,
   Collapse,
@@ -16,43 +15,25 @@ import type { AcademicPaper } from '../../lib/deep-research-api';
 
 type PaperCardProps = {
   paper: AcademicPaper;
-  isSelected: boolean;
-  onToggle: (paperId: string) => void;
 };
 
-export function PaperCard({ paper, isSelected, onToggle }: PaperCardProps) {
+export function PaperCard({ paper }: PaperCardProps) {
   const [showAbstract, setShowAbstract] = useState(false);
 
   return (
     <Box
       borderWidth="1px"
-      borderColor={isSelected ? 'blue.300' : 'gray.200'}
+      borderColor="gray.200"
       borderRadius="lg"
       p={4}
-      bg={isSelected ? 'blue.50' : 'white'}
-      cursor="pointer"
+      bg="white"
       transition="all 0.2s"
       _hover={{
         borderColor: 'blue.300',
-        shadow: 'sm'
+        shadow: 'md'
       }}
-      onClick={() => onToggle(paper.id)}
     >
-      <HStack align="start" spacing={3}>
-        {/* Checkbox */}
-        <Checkbox
-          isChecked={isSelected}
-          onChange={(e) => {
-            e.stopPropagation();
-            onToggle(paper.id);
-          }}
-          size="lg"
-          colorScheme="blue"
-          mt={1}
-        />
-
-        {/* Content */}
-        <VStack align="stretch" spacing={2} flex={1}>
+      <VStack align="stretch" spacing={2}>
           {/* Title */}
           <Text
             fontWeight="semibold"
@@ -107,10 +88,7 @@ export function PaperCard({ paper, isSelected, onToggle }: PaperCardProps) {
                 size="xs"
                 variant="ghost"
                 leftIcon={showAbstract ? <ChevronUpIcon /> : <ChevronDownIcon />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowAbstract(!showAbstract);
-                }}
+                onClick={() => setShowAbstract(!showAbstract)}
                 width="fit-content"
               >
                 {showAbstract ? 'Hide' : 'Show'} Abstract
@@ -139,7 +117,6 @@ export function PaperCard({ paper, isSelected, onToggle }: PaperCardProps) {
               isExternal
               fontSize="sm"
               color="blue.600"
-              onClick={(e) => e.stopPropagation()}
             >
               View on Semantic Scholar <Icon as={ExternalLinkIcon} mx="2px" />
             </Link>
@@ -150,14 +127,13 @@ export function PaperCard({ paper, isSelected, onToggle }: PaperCardProps) {
                 isExternal
                 fontSize="sm"
                 color="green.600"
-                onClick={(e) => e.stopPropagation()}
+                fontWeight="medium"
               >
                 Download PDF <Icon as={ExternalLinkIcon} mx="2px" />
               </Link>
             )}
           </HStack>
         </VStack>
-      </HStack>
     </Box>
   );
 }

@@ -245,81 +245,100 @@ export async function createEmbeddings(
         totalCharacters: texts.reduce((sum, t) => sum + t.length, 0)
       });
 
-      const response = await fetch(`${OPENROUTER_BASE_URL}/embeddings`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${env.openRouterApiKey as string}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://thesis-copilot.com',
-          'X-Title': 'Thesis Copilot'
-        },
-        body: JSON.stringify({
-          model: 'openai/text-embedding-3-small',
-          input: texts
-        })
-      });
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000); // 60 second timeout
 
-      const latencyMs = performance.now() - start;
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error(`OpenRouter embeddings API failed: ${response.status}`, undefined, {
-          ...context,
-          statusCode: response.status,
-          errorText: errorText.substring(0, 500)
+      try {
+        const response = await fetch(`${OPENROUTER_BASE_URL}/embeddings`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${env.openRouterApiKey as string}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://thesis-copilot.com',
+            'X-Title': 'Thesis Copilot'
+          },
+          body: JSON.stringify({
+            model: 'openai/text-embedding-3-small',
+            input: texts
+          }),
+          signal: controller.signal
         });
 
-        // Handle specific error codes
-        if (response.status === 429) {
+        clearTimeout(timeout);
+
+        const latencyMs = performance.now() - start;
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          logger.error(`OpenRouter embeddings API failed: ${response.status}`, undefined, {
+            ...context,
+            statusCode: response.status,
+            errorText: errorText.substring(0, 500)
+          });
+
+          // Handle specific error codes
+          if (response.status === 429) {
+            throw new AIServiceError(
+              ErrorCode.AI_QUOTA_EXCEEDED,
+              `Embedding generation rate limit exceeded: ${errorText}`,
+              { ...context, statusCode: response.status }
+            );
+          } else if (response.status === 401) {
+            throw new AIServiceError(
+              ErrorCode.AI_SERVICE_ERROR,
+              `OpenRouter authentication failed: ${errorText}`,
+              { ...context, statusCode: response.status }
+            );
+          } else if (response.status >= 500) {
+            throw new AIServiceError(
+              ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE,
+              `OpenRouter service unavailable: ${response.status} - ${errorText}`,
+              { ...context, statusCode: response.status }
+            );
+          } else {
+            throw new AIServiceError(
+              ErrorCode.EMBEDDING_GENERATION_FAILED,
+              `Embedding generation failed: ${response.status} - ${errorText}`,
+              { ...context, statusCode: response.status }
+            );
+          }
+        }
+
+        const json = (await response.json()) as {
+          data: Array<{ embedding: number[] }>;
+          usage?: { prompt_tokens?: number; total_tokens?: number };
+        };
+
+        const result = {
+          model: 'openai/text-embedding-3-small',
+          embeddings: json.data.map((item) => item.embedding),
+          latencyMs,
+          usage: {
+            promptTokens: json.usage?.prompt_tokens,
+            totalTokens: json.usage?.total_tokens
+          },
+          cached: false
+        };
+
+        logger.info(`Successfully created ${result.embeddings.length} embeddings`, context, {
+          latencyMs: result.latencyMs,
+          usage: result.usage,
+          dimensionality: result.embeddings[0]?.length
+        });
+
+        return result;
+      } catch (fetchError) {
+        clearTimeout(timeout);
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
           throw new AIServiceError(
-            ErrorCode.AI_QUOTA_EXCEEDED,
-            `Embedding generation rate limit exceeded: ${errorText}`,
-            { ...context, statusCode: response.status }
-          );
-        } else if (response.status === 401) {
-          throw new AIServiceError(
-            ErrorCode.AI_SERVICE_ERROR,
-            `OpenRouter authentication failed: ${errorText}`,
-            { ...context, statusCode: response.status }
-          );
-        } else if (response.status >= 500) {
-          throw new AIServiceError(
-            ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE,
-            `OpenRouter service unavailable: ${response.status} - ${errorText}`,
-            { ...context, statusCode: response.status }
-          );
-        } else {
-          throw new AIServiceError(
-            ErrorCode.EMBEDDING_GENERATION_FAILED,
-            `Embedding generation failed: ${response.status} - ${errorText}`,
-            { ...context, statusCode: response.status }
+            ErrorCode.CONNECTION_TIMEOUT,
+            'Embedding generation timed out after 60 seconds',
+            { ...context }
           );
         }
+        throw fetchError;
       }
-
-      const json = (await response.json()) as {
-        data: Array<{ embedding: number[] }>;
-        usage?: { prompt_tokens?: number; total_tokens?: number };
-      };
-
-      const result = {
-        model: 'openai/text-embedding-3-small',
-        embeddings: json.data.map((item) => item.embedding),
-        latencyMs,
-        usage: {
-          promptTokens: json.usage?.prompt_tokens,
-          totalTokens: json.usage?.total_tokens
-        },
-        cached: false
-      };
-
-      logger.info(`Successfully created ${result.embeddings.length} embeddings`, context, {
-        latencyMs: result.latencyMs,
-        usage: result.usage,
-        dimensionality: result.embeddings[0]?.length
-      });
-
-      return result;
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;

@@ -251,24 +251,46 @@ export async function searchByTitle(title: string): Promise<AcademicPaper | null
 }
 
 /**
- * Download PDF from URL
+ * Download PDF from URL with timeout
  */
-export async function downloadPDF(pdfUrl: string): Promise<Buffer> {
+export async function downloadPDF(pdfUrl: string, timeoutMs: number = 30000): Promise<Buffer> {
   logger.info('Downloading PDF', { url: pdfUrl });
 
   try {
-    const response = await fetch(pdfUrl, {
-      headers: {
-        'User-Agent': 'ThesisCopilot/1.0 (Research Assistant; contact@thesis-copilot.com)'
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(pdfUrl, {
+        headers: {
+          'User-Agent': 'ThesisCopilot/1.0 (Research Assistant; contact@thesis-copilot.com)'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`Failed to download PDF: ${response.status}`);
       }
-    });
 
-    if (!response.ok) {
-      throw new Error(`Failed to download PDF: ${response.status}`);
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      logger.info('PDF downloaded successfully', {
+        url: pdfUrl,
+        sizeKB: Math.round(buffer.length / 1024)
+      });
+
+      return buffer;
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new Error(`PDF download timed out after ${timeoutMs}ms`);
+      }
+      throw fetchError;
     }
-
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
   } catch (error) {
     logger.error('PDF download failed', error);
     throw new AIServiceError(

@@ -24,15 +24,13 @@ import {
 } from '@chakra-ui/react';
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SearchIcon, CheckCircleIcon } from '@chakra-ui/icons';
+import { SearchIcon, DownloadIcon, InfoIcon } from '@chakra-ui/icons';
 import {
   generateResearchPlan,
   refineResearchPlan,
   searchAcademicPapers,
-  ingestMultiplePapers,
   type ResearchPlan,
-  type AcademicPaper,
-  type IngestionResult
+  type AcademicPaper
 } from '../../lib/deep-research-api';
 import { PaperCard } from '../../components/research/PaperCard';
 import { PageShell } from '../shared/PageShell';
@@ -43,9 +41,7 @@ type ResearchStatus =
   | 'generating-plan'
   | 'plan-ready'
   | 'searching-papers'
-  | 'papers-ready'
-  | 'ingesting'
-  | 'complete';
+  | 'papers-ready';
 
 export function DeepResearchStep() {
   const navigate = useNavigate();
@@ -54,10 +50,7 @@ export function DeepResearchStep() {
   const [status, setStatus] = useState<ResearchStatus>('idle');
   const [researchPlan, setResearchPlan] = useState<ResearchPlan | null>(null);
   const [papers, setPapers] = useState<AcademicPaper[]>([]);
-  const [selectedPaperIds, setSelectedPaperIds] = useState<Set<string>>(new Set());
-  const [ingestionResults, setIngestionResults] = useState<IngestionResult[]>([]);
   const [searchProgress, setSearchProgress] = useState(0);
-  const [ingestionProgress, setIngestionProgress] = useState(0);
   const [refinementFeedback, setRefinementFeedback] = useState('');
 
   const toast = useToast();
@@ -247,78 +240,6 @@ export function DeepResearchStep() {
     }
   };
 
-  // Step 4: Toggle paper selection
-  const handleTogglePaper = (paperId: string) => {
-    setSelectedPaperIds(prev => {
-      const next = new Set(prev);
-      if (next.has(paperId)) {
-        next.delete(paperId);
-      } else {
-        next.add(paperId);
-      }
-      return next;
-    });
-  };
-
-  // Step 5: Ingest selected papers
-  const handleStartResearch = async () => {
-    if (selectedPaperIds.size === 0) {
-      toast({
-        title: 'No papers selected',
-        description: 'Please select at least one paper to ingest',
-        status: 'warning',
-        duration: 3000
-      });
-      return;
-    }
-
-    setStatus('ingesting');
-    setIngestionProgress(0);
-
-    try {
-      if (!project) {
-        toast({
-          title: 'No project found',
-          description: 'Please complete project setup first',
-          status: 'error',
-          duration: 3000
-        });
-        return;
-      }
-
-      const selectedPapers = papers.filter(p => selectedPaperIds.has(p.id));
-      const results: IngestionResult[] = [];
-
-      for (let i = 0; i < selectedPapers.length; i++) {
-        try {
-          const result = await ingestMultiplePapers(project.id, [selectedPapers[i]]);
-          results.push(...result);
-          setIngestionProgress(((i + 1) / selectedPapers.length) * 100);
-        } catch (error) {
-          console.error(`Failed to ingest paper: ${selectedPapers[i].title}`, error);
-        }
-      }
-
-      setIngestionResults(results);
-      setStatus('complete');
-      toast({
-        title: 'Research complete',
-        description: `Successfully ingested ${results.length} papers`,
-        status: 'success',
-        duration: 5000
-      });
-    } catch (error) {
-      console.error('Ingestion failed:', error);
-      toast({
-        title: 'Ingestion failed',
-        description: (error as Error).message,
-        status: 'error',
-        duration: 5000
-      });
-      setStatus('papers-ready');
-    }
-  };
-
   // Navigation handlers
   const handlePrevious = useCallback(() => {
     navigate('/onboarding/start');
@@ -326,7 +247,7 @@ export function DeepResearchStep() {
   }, [navigate]);
 
   const handleNext = useCallback(() => {
-    if (status === 'complete') {
+    if (status === 'papers-ready') {
       navigate('/onboarding/sources');
     }
     return false;
@@ -345,7 +266,7 @@ export function DeepResearchStep() {
   return (
     <PageShell
       title="Step 2: Deep Research"
-      description="Let AI find and analyze relevant academic papers for your thesis. Enter your research topic, review the plan, select papers, and we'll ingest them into your knowledge base."
+      description="Let AI find and analyze relevant academic papers for your thesis. Enter your research topic, review the AI-generated plan, and discover papers you can download and add to your knowledge base."
     >
       <VStack spacing={8} align="stretch">
 
@@ -488,109 +409,58 @@ export function DeepResearchStep() {
           </>
         )}
 
-        {/* Step 3: Paper Selection */}
-        {(status === 'papers-ready' || status === 'ingesting' || status === 'complete') &&
-          papers.length > 0 && (
+        {/* Step 3: Papers Found - Display with Guidance */}
+        {status === 'papers-ready' && papers.length > 0 && (
             <>
               <Divider />
               <Box>
-                <HStack justify="space-between" mb={4}>
-                  <Text fontWeight="semibold">Step 3: Select papers to ingest</Text>
-                  <Badge colorScheme="blue" fontSize="sm">
-                    {selectedPaperIds.size} / {papers.length} selected
-                  </Badge>
-                </HStack>
+                <VStack spacing={4} align="stretch" mb={6}>
+                  <HStack justify="space-between">
+                    <Text fontWeight="semibold">Step 3: Review papers</Text>
+                    <Badge colorScheme="blue" fontSize="sm">
+                      {papers.length} papers found
+                    </Badge>
+                  </HStack>
 
-                <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} mb={4}>
+                  <Alert status="info" variant="left-accent">
+                    <AlertIcon as={InfoIcon} />
+                    <Box>
+                      <AlertTitle fontSize="md">How to Use These Papers</AlertTitle>
+                      <AlertDescription fontSize="sm">
+                        <VStack align="start" spacing={2} mt={2}>
+                          <Text>1. Review the abstracts below to find relevant papers</Text>
+                          <Text>2. Click <strong>"Download PDF"</strong> to save papers to your computer</Text>
+                          <Text>3. Upload PDFs via the <strong>Sources</strong> page (next step) to add them to your knowledge base</Text>
+                          <Text fontWeight="medium" color="blue.700" mt={2}>
+                            Papers with abstracts only (no PDF) can still provide useful context - read them on Semantic Scholar!
+                          </Text>
+                        </VStack>
+                      </AlertDescription>
+                    </Box>
+                  </Alert>
+                </VStack>
+
+                <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} mb={6}>
                   {papers.map(paper => (
                     <PaperCard
                       key={paper.id}
                       paper={paper}
-                      isSelected={selectedPaperIds.has(paper.id)}
-                      onToggle={handleTogglePaper}
                     />
                   ))}
                 </SimpleGrid>
 
-                {status === 'papers-ready' && (
-                  <Button
-                    colorScheme="green"
-                    size="lg"
-                    width="full"
-                    onClick={handleStartResearch}
-                    isDisabled={selectedPaperIds.size === 0}
-                  >
-                    Start Deep Research ({selectedPaperIds.size} papers)
-                  </Button>
-                )}
+                <Button
+                  colorScheme="blue"
+                  size="lg"
+                  width="full"
+                  leftIcon={<DownloadIcon />}
+                  onClick={() => navigate('/onboarding/sources')}
+                >
+                  Continue to Upload Sources
+                </Button>
               </Box>
             </>
           )}
-
-        {/* Step 4: Ingestion Progress */}
-        {status === 'ingesting' && (
-          <>
-            <Divider />
-            <Box>
-              <VStack spacing={4} align="stretch">
-                <HStack>
-                  <Spinner size="sm" />
-                  <Text fontWeight="semibold">Step 4: Ingesting papers...</Text>
-                </HStack>
-                <Progress value={ingestionProgress} colorScheme="green" hasStripe isAnimated />
-                <Text fontSize="sm" color="gray.600">
-                  {Math.round(ingestionProgress)}% complete - This may take a few minutes
-                </Text>
-              </VStack>
-            </Box>
-          </>
-        )}
-
-        {/* Step 5: Complete */}
-        {status === 'complete' && (
-          <>
-            <Divider />
-            <Box>
-              <Alert status="success">
-                <AlertIcon as={CheckCircleIcon} />
-                <Box flex="1">
-                  <AlertTitle>Research Complete!</AlertTitle>
-                  <AlertDescription>
-                    Successfully ingested {ingestionResults.length} academic papers into your
-                    knowledge base. You can now use these sources in your thesis.
-                  </AlertDescription>
-                </Box>
-              </Alert>
-
-              <VStack spacing={3} mt={4} align="stretch">
-                <Text fontWeight="semibold">Ingestion Summary:</Text>
-                {ingestionResults.map((result, idx) => (
-                  <Box key={idx} p={3} bg="gray.50" borderRadius="md">
-                    <HStack justify="space-between">
-                      <Text fontSize="sm">Source {idx + 1}</Text>
-                      <Badge colorScheme="blue">{result.chunkCount} chunks</Badge>
-                    </HStack>
-                    <Text fontSize="sm" color="gray.600" mt={1} noOfLines={2}>
-                      {result.summary.abstract}
-                    </Text>
-                    <Text fontSize="xs" color="gray.500" mt={1}>
-                      {result.summary.wordCount} words
-                    </Text>
-                  </Box>
-                ))}
-              </VStack>
-
-              <HStack mt={6} justify="space-between">
-                <Button variant="outline" onClick={() => navigate('/onboarding/start')}>
-                  Back
-                </Button>
-                <Button colorScheme="blue" onClick={() => navigate('/onboarding/sources')}>
-                  Continue to Next Step
-                </Button>
-              </HStack>
-            </Box>
-          </>
-        )}
 
         {/* Skip Button */}
         {status === 'idle' && (

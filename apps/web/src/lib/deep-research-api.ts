@@ -40,15 +40,6 @@ export type ScrapedContent = {
   };
 };
 
-export type IngestionResult = {
-  sourceId: string;
-  chunkCount: number;
-  summary: {
-    abstract: string;
-    wordCount: number;
-  };
-};
-
 /**
  * Generate a research plan from a user query with project context
  */
@@ -133,54 +124,4 @@ export async function scrapeMultiplePages(
   );
 
   return response.results;
-}
-
-/**
- * Ingest a single academic paper
- */
-export async function ingestAcademicPaper(
-  projectId: string,
-  paper: AcademicPaper
-): Promise<IngestionResult> {
-  return await request<IngestionResult>(
-    '/api/research/ingest/paper',
-    {
-      method: 'POST',
-      body: JSON.stringify({ projectId, paper })
-    }
-  );
-}
-
-/**
- * Ingest multiple academic papers
- */
-export async function ingestMultiplePapers(
-  projectId: string,
-  papers: AcademicPaper[]
-): Promise<IngestionResult[]> {
-  const response = await request<{ results: IngestionResult[] }>(
-    '/api/research/ingest/papers',
-    {
-      method: 'POST',
-      body: JSON.stringify({ projectId, papers })
-    }
-  );
-
-  return response.results;
-}
-
-/**
- * Ingest content from a web page
- */
-export async function ingestWebPage(
-  projectId: string,
-  url: string
-): Promise<IngestionResult> {
-  return await request<IngestionResult>(
-    '/api/research/ingest/webpage',
-    {
-      method: 'POST',
-      body: JSON.stringify({ projectId, url })
-    }
-  );
 }

@@ -218,7 +218,7 @@ Please refine the research plan based on the feedback. You may:
 Return ONLY the JSON object with the refined sub-questions, no additional text.`;
 
     const response = await generateChatCompletion({
-      model: 'google/gemini-flash-1.5-8b',
+      model: 'google/gemini-2.5-flash',
       systemPrompt,
       userPrompt,
       temperature: 0.4,
