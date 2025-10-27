@@ -13,11 +13,12 @@ import {
   Alert,
   AlertIcon,
   AlertDescription,
-  useToast
+  useToast,
+  Container
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AddIcon } from '@chakra-ui/icons';
+import { Plus, FileText, Clock, ArrowRight } from 'lucide-react';
 import type { Project } from '@thesis-copilot/shared';
 import { fetchProjects } from '../../lib/api';
 import { PageShell } from '../shared/PageShell';
@@ -63,137 +64,217 @@ export function Dashboard() {
 
   if (isLoading) {
     return (
-      <PageShell
-        title="Dashboard"
-        description="Manage your thesis projects"
-      >
-        <Grid templateColumns="repeat(auto-fill, minmax(320px, 1fr))" gap={6}>
-          <Skeleton height="200px" borderRadius="xl" />
-          <Skeleton height="200px" borderRadius="xl" />
-          <Skeleton height="200px" borderRadius="xl" />
-        </Grid>
-      </PageShell>
+      <Box minH="100vh" bg="#F8F8F7">
+        <Container maxW="7xl" py={12}>
+          <Stack spacing={2} mb={12}>
+            <Heading 
+              size="2xl" 
+              fontFamily="Lora" 
+              color="#2D3748"
+              letterSpacing="-0.02em"
+            >
+              Your Projects
+            </Heading>
+            <Text color="#6B7280" fontSize="lg">
+              Manage and organize your thesis research
+            </Text>
+          </Stack>
+          <Grid templateColumns="repeat(auto-fill, minmax(340px, 1fr))" gap={6}>
+            <Skeleton height="280px" borderRadius="2xl" startColor="#E5E7EB" endColor="#F3F4F6" />
+            <Skeleton height="280px" borderRadius="2xl" startColor="#E5E7EB" endColor="#F3F4F6" />
+            <Skeleton height="280px" borderRadius="2xl" startColor="#E5E7EB" endColor="#F3F4F6" />
+          </Grid>
+        </Container>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <PageShell
-        title="Dashboard"
-        description="Manage your thesis projects"
-      >
-        <Alert status="error" borderRadius="lg">
-          <AlertIcon />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </PageShell>
+      <Box minH="100vh" bg="#F8F8F7">
+        <Container maxW="7xl" py={12}>
+          <Stack spacing={2} mb={12}>
+            <Heading 
+              size="2xl" 
+              fontFamily="Lora" 
+              color="#2D3748"
+              letterSpacing="-0.02em"
+            >
+              Your Projects
+            </Heading>
+            <Text color="#6B7280" fontSize="lg">
+              Manage and organize your thesis research
+            </Text>
+          </Stack>
+          <Alert 
+            status="error" 
+            borderRadius="2xl" 
+            bg="white"
+            border="1px solid"
+            borderColor="#FEE2E2"
+          >
+            <AlertIcon color="#DC2626" />
+            <AlertDescription color="#991B1B">{error}</AlertDescription>
+          </Alert>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <PageShell
-      title="Dashboard"
-      description="Manage your thesis projects"
-      actions={
-        <Button
-          leftIcon={<AddIcon />}
-          colorScheme="blue"
-          onClick={handleCreateProject}
-        >
-          New Project
-        </Button>
-      }
-    >
-      {projects.length === 0 ? (
-        <Card
-          bg="rgba(15,23,42,0.65)"
-          border="1px solid rgba(63,131,248,0.25)"
-          borderRadius="xl"
-        >
-          <CardBody>
-            <Stack spacing={4} align="center" py={12}>
-              <Heading size="md" color="blue.100">
-                No projects yet
-              </Heading>
-              <Text color="blue.200" textAlign="center" maxW="md">
-                Create your first thesis project to get started. We'll guide you through
-                structuring your research and writing your thesis.
-              </Text>
+    <Box minH="100vh" bg="#F8F8F7">
+      <Container maxW="7xl" py={12}>
+        {/* Header Section */}
+        <Stack spacing={2} mb={12}>
+          <Heading 
+            size="2xl" 
+            fontFamily="Lora" 
+            color="#2D3748"
+            letterSpacing="-0.02em"
+          >
+            Your Projects
+          </Heading>
+          <Text color="#6B7280" fontSize="lg">
+            Manage and organize your thesis research
+          </Text>
+        </Stack>
+
+        {projects.length === 0 ? (
+          <Box
+            bg="white"
+            border="1px solid"
+            borderColor="#E5E7EB"
+            borderRadius="2xl"
+            p={16}
+            textAlign="center"
+          >
+            <Stack spacing={6} align="center">
+              <Box
+                w="80px"
+                h="80px"
+                borderRadius="full"
+                bg="rgba(96, 122, 148, 0.1)"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <FileText size={36} color="#607A94" />
+              </Box>
+              <Stack spacing={3} maxW="md">
+                <Heading size="lg" color="#2D3748" fontFamily="Lora">
+                  Start Your First Thesis
+                </Heading>
+                <Text color="#6B7280" fontSize="md" lineHeight="tall">
+                  Create your first thesis project to get started. We'll guide you through
+                  structuring your research and writing your thesis with AI assistance.
+                </Text>
+              </Stack>
               <Button
-                leftIcon={<AddIcon />}
-                colorScheme="blue"
+                leftIcon={<Plus size={20} />}
+                bg="#607A94"
+                color="white"
                 size="lg"
+                borderRadius="xl"
+                px={8}
+                py={6}
+                fontSize="md"
+                _hover={{ bg: '#506580', transform: 'translateY(-2px)' }}
+                transition="all 0.2s"
                 onClick={handleCreateProject}
               >
                 Create First Project
               </Button>
             </Stack>
-          </CardBody>
-        </Card>
-      ) : (
-        <Grid templateColumns="repeat(auto-fill, minmax(320px, 1fr))" gap={6}>
-          {projects.map((project) => {
-            const sectionCount = project.constitution?.outline.sections.length ?? 0;
-            const hasConstitution = !!project.constitution;
-            const lastUpdated = project.updatedAt
-              ? new Date(project.updatedAt).toLocaleDateString()
-              : 'Not updated yet';
+          </Box>
+        ) : (
+          <Grid templateColumns="repeat(auto-fill, minmax(340px, 1fr))" gap={6}>
+            {projects.map((project) => {
+              const sectionCount = project.constitution?.outline.sections.length ?? 0;
+              const hasConstitution = !!project.constitution;
+              const lastUpdated = project.updatedAt
+                ? new Date(project.updatedAt).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                  })
+                : 'Not updated yet';
 
-            return (
-              <Card
-                key={project.id}
-                bg="rgba(15,23,42,0.65)"
-                border="1px solid rgba(63,131,248,0.25)"
-                borderRadius="xl"
-                cursor="pointer"
-                transition="all 0.2s"
-                _hover={{
-                  borderColor: 'blue.400',
-                  bg: 'rgba(59,130,246,0.12)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 4px 12px rgba(59,130,246,0.2)'
-                }}
-                onClick={() => handleOpenProject(project.id)}
-              >
-                <CardBody>
-                  <Stack spacing={3}>
+              return (
+                <Box
+                  key={project.id}
+                  bg="white"
+                  border="1px solid"
+                  borderColor="#E5E7EB"
+                  borderRadius="2xl"
+                  p={6}
+                  cursor="pointer"
+                  transition="all 0.2s"
+                  _hover={{
+                    borderColor: '#607A94',
+                    boxShadow: '0 8px 24px rgba(96, 122, 148, 0.12)',
+                    transform: 'translateY(-4px)'
+                  }}
+                  onClick={() => handleOpenProject(project.id)}
+                >
+                  <Stack spacing={4}>
                     <Flex justify="space-between" align="flex-start">
-                      <Heading size="md" color="blue.100" noOfLines={2}>
+                      <Heading 
+                        size="md" 
+                        color="#2D3748" 
+                        fontFamily="Lora"
+                        noOfLines={2}
+                        flex={1}
+                        pr={3}
+                      >
                         {project.title}
                       </Heading>
                       <Badge
-                        colorScheme={hasConstitution ? 'green' : 'yellow'}
+                        bg={hasConstitution ? 'rgba(34, 197, 94, 0.1)' : 'rgba(251, 191, 36, 0.1)'}
+                        color={hasConstitution ? '#15803d' : '#b45309'}
                         fontSize="xs"
+                        px={3}
+                        py={1}
+                        borderRadius="full"
+                        fontWeight="semibold"
                       >
                         {hasConstitution ? 'Active' : 'Setup'}
                       </Badge>
                     </Flex>
 
                     {project.description && (
-                      <Text color="blue.200" fontSize="sm" noOfLines={3}>
+                      <Text color="#6B7280" fontSize="sm" noOfLines={3} lineHeight="tall">
                         {project.description}
                       </Text>
                     )}
 
-                    <Stack spacing={2} pt={2}>
-                      <Flex gap={4} fontSize="sm" color="blue.300">
-                        <Text>
-                          Sections: <Text as="span" fontWeight="semibold">{sectionCount}</Text>
-                        </Text>
-                        <Text>
-                          Style: <Text as="span" fontWeight="semibold">{project.citationStyle}</Text>
-                        </Text>
+                    <Stack spacing={3} pt={2}>
+                      <Flex gap={6} fontSize="sm" color="#6B7280">
+                        <Flex align="center" gap={2}>
+                          <FileText size={16} />
+                          <Text>
+                            <Text as="span" fontWeight="semibold" color="#2D3748">{sectionCount}</Text> sections
+                          </Text>
+                        </Flex>
+                        <Flex align="center" gap={2}>
+                          <Text fontWeight="medium">
+                            {project.citationStyle}
+                          </Text>
+                        </Flex>
                       </Flex>
 
-                      <Text fontSize="xs" color="blue.400">
-                        Last updated: {lastUpdated}
-                      </Text>
+                      <Flex align="center" gap={2} fontSize="xs" color="#9CA3AF">
+                        <Clock size={14} />
+                        <Text>{lastUpdated}</Text>
+                      </Flex>
                     </Stack>
 
                     <Button
-                      colorScheme="blue"
+                      bg="#607A94"
+                      color="white"
                       size="sm"
-                      variant="outline"
+                      borderRadius="lg"
+                      rightIcon={<ArrowRight size={16} />}
+                      _hover={{ bg: '#506580' }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenProject(project.id);
@@ -202,48 +283,54 @@ export function Dashboard() {
                       Open Workspace
                     </Button>
                   </Stack>
-                </CardBody>
-              </Card>
-            );
-          })}
+                </Box>
+              );
+            })}
 
-          {/* Add new project card */}
-          <Card
-            bg="rgba(15,23,42,0.4)"
-            border="2px dashed rgba(63,131,248,0.35)"
-            borderRadius="xl"
-            cursor="pointer"
-            transition="all 0.2s"
-            _hover={{
-              borderColor: 'blue.400',
-              bg: 'rgba(59,130,246,0.08)'
-            }}
-            onClick={handleCreateProject}
-          >
-            <CardBody>
-              <Stack spacing={3} align="center" justify="center" minH="200px">
+            {/* Add new project card */}
+            <Box
+              bg="white"
+              border="2px dashed"
+              borderColor="#D1D5DB"
+              borderRadius="2xl"
+              p={6}
+              cursor="pointer"
+              transition="all 0.2s"
+              _hover={{
+                borderColor: '#607A94',
+                bg: 'rgba(96, 122, 148, 0.02)'
+              }}
+              onClick={handleCreateProject}
+              minH="280px"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Stack spacing={4} align="center" textAlign="center">
                 <Box
-                  w="60px"
-                  h="60px"
+                  w="64px"
+                  h="64px"
                   borderRadius="full"
-                  bg="rgba(59,130,246,0.15)"
+                  bg="rgba(96, 122, 148, 0.1)"
                   display="flex"
                   alignItems="center"
                   justifyContent="center"
                 >
-                  <AddIcon color="blue.300" boxSize={6} />
+                  <Plus size={28} color="#607A94" />
                 </Box>
-                <Heading size="sm" color="blue.100">
-                  New Project
-                </Heading>
-                <Text color="blue.300" fontSize="sm" textAlign="center">
-                  Start a new thesis project
-                </Text>
+                <Stack spacing={2}>
+                  <Heading size="sm" color="#2D3748" fontFamily="Lora">
+                    New Project
+                  </Heading>
+                  <Text color="#6B7280" fontSize="sm">
+                    Start a new thesis project
+                  </Text>
+                </Stack>
               </Stack>
-            </CardBody>
-          </Card>
-        </Grid>
-      )}
-    </PageShell>
+            </Box>
+          </Grid>
+        )}
+      </Container>
+    </Box>
   );
 }

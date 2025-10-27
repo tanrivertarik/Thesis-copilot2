@@ -8,6 +8,7 @@ import { DeepResearchStep } from './onboarding/DeepResearchStep';
 import { ResearchInputsStep } from './onboarding/ResearchInputsStep';
 import { SummaryStep } from './onboarding/SummaryStep';
 import { Dashboard } from './dashboard/Dashboard';
+import { DashboardWithSidebar } from './dashboard/DashboardWithSidebar';
 import { WorkspaceHome } from './workspace/WorkspaceHome';
 import { SourceManagement } from './workspace/sources/SourceManagement';
 import { EditorShell } from './editor/EditorShell';
@@ -15,10 +16,18 @@ import { Login } from './auth/Login';
 import { RequireAuth } from './shared/RequireAuth';
 
 const router = createBrowserRouter([
-  // Standalone login page (no AppLayout wrapper)
+  // Standalone routes (no AppLayout wrapper)
   {
     path: '/login',
     element: <Login />
+  },
+  {
+    path: '/dashboard',
+    element: (
+      <RequireAuth>
+        <DashboardWithSidebar />
+      </RequireAuth>
+    )
   },
   // Main app with AppLayout wrapper
   {
@@ -28,14 +37,6 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <LandingScene />
-      },
-      {
-        path: 'dashboard',
-        element: (
-          <RequireAuth>
-            <Dashboard />
-          </RequireAuth>
-        )
       },
       {
         path: 'onboarding',
