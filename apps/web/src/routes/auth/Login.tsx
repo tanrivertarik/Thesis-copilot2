@@ -1,21 +1,38 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Box, Button, Center, Heading, Stack, Text, VStack, Flex, Icon } from '@chakra-ui/react';
-import { Shield, Award, Users } from 'lucide-react';
 import { useAuth } from '../../app/providers/firebase/AuthProvider';
+import { SignInPage, type Testimonial } from '../../components/ui/sign-in';
+
+const testimonials: Testimonial[] = [
+  {
+    avatarSrc: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",
+    name: "Sarah Chen",
+    handle: "@sarahphd",
+    text: "Thesis Copilot helped me finish my dissertation 3 months ahead of schedule. The AI drafting is a game-changer!"
+  },
+  {
+    avatarSrc: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop",
+    name: "Marcus Johnson",
+    handle: "@marcusresearch",
+    text: "Finally, an AI tool that respects academic integrity. Every claim is properly sourced and traceable."
+  },
+  {
+    avatarSrc: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop",
+    name: "David Martinez",
+    handle: "@davidacademic",
+    text: "The Constitution feature gave me a clear roadmap. I always knew what to write next. Highly recommended!"
+  },
+];
 
 export function Login() {
   const { user, loading, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  const isEmulatorMode = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
 
   useEffect(() => {
-    console.log('🔀 Login component effect:', {
-      hasUser: !!user,
-      userEmail: user?.email,
-      loading,
-      currentPath: location.pathname
-    });
+    console.log('🔀 Login component mounted');
 
     if (user && !loading) {
       const redirectTo = (location.state as { from?: Location })?.from?.pathname ?? '/dashboard';
@@ -24,102 +41,58 @@ export function Login() {
     }
   }, [user, loading, navigate, location.state]);
 
+  const handleSignIn = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const data = Object.fromEntries(formData.entries());
+    console.log("Email/Password Sign In submitted:", data);
+    alert("Email/password authentication is not yet implemented. Please use Google Sign In.");
+  };
+
+  const handleGoogleSignIn = () => {
+    console.log("Google Sign In clicked");
+    signInWithGoogle();
+  };
+
+  const handleDemoSignIn = () => {
+    console.log("Demo Sign In clicked");
+    signInWithGoogle();
+  };
+
+  const handleResetPassword = () => {
+    alert("Password reset is not yet implemented.");
+  };
+
+  const handleCreateAccount = () => {
+    alert("Account creation is not yet implemented. Please use Google Sign In.");
+  };
+
+  console.log('🎨 Rendering Login component');
+
   return (
-    <Center minH="100vh" bg="academic.background" position="relative">
-      {/* Background decoration */}
-      <Box
-        position="absolute"
-        top="10%"
-        right="10%"
-        width="400px"
-        height="400px"
-        borderRadius="full"
-        bg="academic.accent"
-        opacity={0.03}
-        filter="blur(80px)"
+    <div style={{ width: '100vw', height: '100vh', backgroundColor: '#F8F8F7' }}>
+      <SignInPage
+        title={
+          <span className="font-light tracking-tighter">
+            Welcome to <br />
+            <span className="font-semibold" style={{ color: '#607A94' }}>Thesis Copilot</span>
+          </span>
+        }
+        description={
+          isEmulatorMode 
+            ? "Development mode: Sign in as demo user to access your projects, sources, and drafting workspace."
+            : "Access your account and continue your academic journey with AI-powered thesis writing."
+        }
+        heroImageSrc="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=2160&q=80"
+        testimonials={testimonials}
+        onSignIn={handleSignIn}
+        onGoogleSignIn={handleGoogleSignIn}
+        onDemoSignIn={handleDemoSignIn}
+        onResetPassword={handleResetPassword}
+        onCreateAccount={handleCreateAccount}
+        showDemoButton={isEmulatorMode}
+        isLoading={loading}
       />
-      <Box
-        position="absolute"
-        bottom="10%"
-        left="10%"
-        width="300px"
-        height="300px"
-        borderRadius="full"
-        bg="academic.accent"
-        opacity={0.03}
-        filter="blur(60px)"
-      />
-
-      <VStack spacing={8} maxW="lg" w="full" px={6} position="relative" zIndex={1}>
-        {/* Main Sign In Card */}
-        <Box
-          w="full"
-          p={{ base: 8, md: 12 }}
-          borderRadius="2xl"
-          bg="academic.paper"
-          border="1px solid"
-          borderColor="academic.border"
-          boxShadow="soft"
-        >
-          <Stack spacing={6} textAlign="center">
-            <VStack spacing={2}>
-              <Heading 
-                size="xl" 
-                color="academic.primaryText"
-                fontFamily="heading"
-                letterSpacing="-0.02em"
-              >
-                Sign in to Thesis Copilot
-              </Heading>
-              <Text color="academic.secondaryText" fontSize="md">
-                {import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' 
-                  ? 'Development mode: Sign in as demo user to access your projects, sources, and drafting workspace.'
-                  : 'Connect with Google to access your projects, sources, and drafting workspace.'
-                }
-              </Text>
-            </VStack>
-            
-            <Button
-              onClick={signInWithGoogle}
-              colorScheme="brand"
-              size="lg"
-              isLoading={loading}
-              _hover={{
-                transform: 'translateY(-1px)',
-                boxShadow: '0 4px 12px rgba(96, 122, 148, 0.25)'
-              }}
-            >
-              {import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' 
-                ? 'Sign in as Demo User' 
-                : 'Continue with Google'
-              }
-            </Button>
-          </Stack>
-        </Box>
-
-        {/* Trust Indicators */}
-        <Flex
-          gap={6}
-          color="academic.secondaryText"
-          fontSize="sm"
-          flexWrap="wrap"
-          justify="center"
-          textAlign="center"
-        >
-          <Flex align="center" gap={2}>
-            <Icon as={Shield} boxSize={4} />
-            <Text>Source-Locked AI</Text>
-          </Flex>
-          <Flex align="center" gap={2}>
-            <Icon as={Award} boxSize={4} />
-            <Text>Academic Integrity</Text>
-          </Flex>
-          <Flex align="center" gap={2}>
-            <Icon as={Users} boxSize={4} />
-            <Text>Trusted by Scholars</Text>
-          </Flex>
-        </Flex>
-      </VStack>
-    </Center>
+    </div>
   );
 }

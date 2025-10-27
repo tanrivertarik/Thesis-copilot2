@@ -15,10 +15,12 @@ import { Login } from './auth/Login';
 import { RequireAuth } from './shared/RequireAuth';
 
 const router = createBrowserRouter([
+  // Standalone login page (no AppLayout wrapper)
   {
     path: '/login',
     element: <Login />
   },
+  // Main app with AppLayout wrapper
   {
     path: '/',
     element: <AppLayout />,

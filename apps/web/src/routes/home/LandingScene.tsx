@@ -30,12 +30,13 @@ import {
   Brain,
   Award,
   Clock,
-  TrendingUp
+  TrendingUp,
+  DollarSign
 } from 'lucide-react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../app/providers/firebase/AuthProvider';
 import { TubelightNavbar } from '../../components/ui/TubelightNavbar';
-import { AnimatedHero } from '../../components/ui/AnimatedHero';
+import GLSLHero from '../../components/ui/GLSLHero';
 
 type Phase = {
   number: number;
@@ -101,6 +102,7 @@ export function LandingScene() {
     { name: 'Home', url: '/', icon: Home },
     { name: 'Features', url: '#features', icon: Sparkles },
     { name: 'How It Works', url: '#process', icon: BookOpen },
+    { name: 'Pricing', url: '#pricing', icon: DollarSign },
     { name: isAuthenticated ? 'Workspace' : 'Sign In', url: isAuthenticated ? '/workspace' : '/login', icon: Users }
   ];
 
@@ -110,47 +112,8 @@ export function LandingScene() {
       <TubelightNavbar items={navItems} />
       
       <VStack spacing={0} align="stretch" w="full">
-      {/* Hero Section - Animated */}
-      <AnimatedHero />
-      
-      {/* Auth-specific CTAs */}
-      <Box w="full" bg="academic.paper" py={8} borderBottom="1px solid" borderColor="academic.borderLight">
-        <Container maxW="6xl">
-          <VStack spacing={8}>
-            <HStack spacing={4} flexWrap="wrap" justify="center">
-              {isAuthenticated ? (
-                <>
-                  <Button
-                    as={RouterLink}
-                    to="/onboarding"
-                    size="lg"
-                    colorScheme="brand"
-                    rightIcon={<ArrowRight size={18} />}
-                    isLoading={loading}
-                  >
-                    Begin onboarding
-                  </Button>
-                  <Button
-                    as={RouterLink}
-                    to="/workspace"
-                    variant="outline"
-                    size="lg"
-                  >
-                    Go to workspace
-                  </Button>
-                </>
-              ) : (
-                <>
-                
-                </>
-              )}
-            </HStack>
-
-            
-            
-          </VStack>
-        </Container>
-      </Box>
+      {/* Hero Section - GLSL Hills Animation */}
+      <GLSLHero />
 
       {/* Features Section */}
       <Box id="features" py={{ base: 16, md: 24 }} px={{ base: 6, md: 12 }} bg="academic.paper">
@@ -527,6 +490,244 @@ export function LandingScene() {
                 </Box>
               ))}
             </SimpleGrid>
+          </VStack>
+        </Container>
+      </Box>
+
+      {/* Pricing Section */}
+      <Box 
+        id="pricing" 
+        py={{ base: 16, md: 24 }} 
+        px={{ base: 6, md: 12 }}
+        bg="academic.background"
+      >
+        <Container maxW="6xl">
+          <VStack spacing={12}>
+            <VStack spacing={3} textAlign="center">
+              <Heading
+                size="2xl"
+                fontFamily="heading"
+                color="academic.primaryText"
+                letterSpacing="-0.02em"
+              >
+                Simple, Transparent Pricing
+              </Heading>
+              <Text color="academic.secondaryText" fontSize="lg">
+                Choose the plan that fits your thesis journey
+              </Text>
+            </VStack>
+
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
+              {/* Free Tier */}
+              <Box
+                bg="academic.paper"
+                borderRadius="xl"
+                border="1px solid"
+                borderColor="academic.borderLight"
+                p={8}
+                transition="all 0.3s"
+                _hover={{
+                  borderColor: 'academic.accent',
+                  boxShadow: 'lg'
+                }}
+              >
+                <VStack align="start" spacing={6}>
+                  <VStack align="start" spacing={2}>
+                    <Text 
+                      fontSize="lg" 
+                      fontWeight="semibold" 
+                      color="academic.primaryText"
+                    >
+                      Starter
+                    </Text>
+                    <HStack>
+                      <Heading size="2xl" color="academic.primaryText">$0</Heading>
+                      <Text color="academic.secondaryText">/month</Text>
+                    </HStack>
+                    <Text color="academic.secondaryText" fontSize="sm">
+                      Perfect for getting started
+                    </Text>
+                  </VStack>
+
+                  <VStack align="start" spacing={3} w="full">
+                    {[
+                      'Up to 5 sources',
+                      'Basic AI drafting',
+                      'Thesis Constitution',
+                      'Export to PDF',
+                      'Community support'
+                    ].map((feature, idx) => (
+                      <Flex key={idx} align="center" gap={2}>
+                        <CheckIcon color="academic.accent" boxSize="14px" />
+                        <Text fontSize="sm" color="academic.secondaryText">
+                          {feature}
+                        </Text>
+                      </Flex>
+                    ))}
+                  </VStack>
+
+                  <Button
+                    as={RouterLink}
+                    to={isAuthenticated ? '/onboarding' : '/login'}
+                    w="full"
+                    variant="outline"
+                    colorScheme="brand"
+                  >
+                    Get Started
+                  </Button>
+                </VStack>
+              </Box>
+
+              {/* Pro Tier */}
+              <Box
+                bg="academic.paper"
+                borderRadius="xl"
+                border="2px solid"
+                borderColor="academic.accent"
+                p={8}
+                position="relative"
+                boxShadow="xl"
+              >
+                <Box
+                  position="absolute"
+                  top="-12px"
+                  left="50%"
+                  transform="translateX(-50%)"
+                  bg="academic.accent"
+                  color="white"
+                  px={4}
+                  py={1}
+                  borderRadius="full"
+                  fontSize="xs"
+                  fontWeight="bold"
+                >
+                  MOST POPULAR
+                </Box>
+
+                <VStack align="start" spacing={6}>
+                  <VStack align="start" spacing={2}>
+                    <Text 
+                      fontSize="lg" 
+                      fontWeight="semibold" 
+                      color="academic.primaryText"
+                    >
+                      Professional
+                    </Text>
+                    <HStack>
+                      <Heading size="2xl" color="academic.accent">$29</Heading>
+                      <Text color="academic.secondaryText">/month</Text>
+                    </HStack>
+                    <Text color="academic.secondaryText" fontSize="sm">
+                      For serious thesis writers
+                    </Text>
+                  </VStack>
+
+                  <VStack align="start" spacing={3} w="full">
+                    {[
+                      'Unlimited sources',
+                      'Advanced AI drafting',
+                      'Deep research planning',
+                      'Priority processing',
+                      'Version history',
+                      'Advanced export options',
+                      'Email support'
+                    ].map((feature, idx) => (
+                      <Flex key={idx} align="center" gap={2}>
+                        <CheckIcon color="academic.accent" boxSize="14px" />
+                        <Text fontSize="sm" color="academic.secondaryText">
+                          {feature}
+                        </Text>
+                      </Flex>
+                    ))}
+                  </VStack>
+
+                  <Button
+                    as={RouterLink}
+                    to={isAuthenticated ? '/onboarding' : '/login'}
+                    w="full"
+                    bg="academic.accent"
+                    color="white"
+                    _hover={{
+                      bg: '#506580'
+                    }}
+                  >
+                    Start Free Trial
+                  </Button>
+                </VStack>
+              </Box>
+
+              {/* Academic Tier */}
+              <Box
+                bg="academic.paper"
+                borderRadius="xl"
+                border="1px solid"
+                borderColor="academic.borderLight"
+                p={8}
+                transition="all 0.3s"
+                _hover={{
+                  borderColor: 'academic.accent',
+                  boxShadow: 'lg'
+                }}
+              >
+                <VStack align="start" spacing={6}>
+                  <VStack align="start" spacing={2}>
+                    <Text 
+                      fontSize="lg" 
+                      fontWeight="semibold" 
+                      color="academic.primaryText"
+                    >
+                      Academic
+                    </Text>
+                    <HStack>
+                      <Heading size="2xl" color="academic.primaryText">$99</Heading>
+                      <Text color="academic.secondaryText">/month</Text>
+                    </HStack>
+                    <Text color="academic.secondaryText" fontSize="sm">
+                      For institutions & teams
+                    </Text>
+                  </VStack>
+
+                  <VStack align="start" spacing={3} w="full">
+                    {[
+                      'Everything in Professional',
+                      'Team collaboration',
+                      'Custom integrations',
+                      'Admin dashboard',
+                      'Dedicated support',
+                      'Custom training',
+                      'SLA guarantee'
+                    ].map((feature, idx) => (
+                      <Flex key={idx} align="center" gap={2}>
+                        <CheckIcon color="academic.accent" boxSize="14px" />
+                        <Text fontSize="sm" color="academic.secondaryText">
+                          {feature}
+                        </Text>
+                      </Flex>
+                    ))}
+                  </VStack>
+
+                  <Button
+                    as={RouterLink}
+                    to="/login"
+                    w="full"
+                    variant="outline"
+                    colorScheme="brand"
+                  >
+                    Contact Sales
+                  </Button>
+                </VStack>
+              </Box>
+            </SimpleGrid>
+
+            {/* FAQ or additional info */}
+            <VStack spacing={4} pt={8}>
+              <Text color="academic.secondaryText" fontSize="sm" textAlign="center">
+                All plans include a 14-day free trial. No credit card required.
+              </Text>
+              <Text color="academic.secondaryText" fontSize="sm" textAlign="center">
+                Students with .edu email get 20% off any paid plan.
+              </Text>
+            </VStack>
           </VStack>
         </Container>
       </Box>

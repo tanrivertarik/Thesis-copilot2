@@ -68,11 +68,27 @@ export function TubelightNavbar({ items, className }: TubelightNavbarProps) {
           const Icon = item.icon;
           const isActive = activeTab === item.name;
 
+          const handleClick = (e: React.MouseEvent) => {
+            setActiveTab(item.name);
+            
+            // Handle hash navigation for smooth scrolling
+            if (item.url.startsWith('#')) {
+              e.preventDefault();
+              const element = document.querySelector(item.url);
+              if (element) {
+                element.scrollIntoView({ 
+                  behavior: 'smooth',
+                  block: 'start'
+                });
+              }
+            }
+          };
+
           return (
             <RouterLink
               key={item.name}
               to={item.url}
-              onClick={() => setActiveTab(item.name)}
+              onClick={handleClick}
               style={{ textDecoration: 'none' }}
             >
               <Box
