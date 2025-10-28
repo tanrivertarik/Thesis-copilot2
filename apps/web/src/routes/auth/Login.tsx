@@ -73,9 +73,9 @@ export function Login() {
     <div style={{ width: '100vw', height: '100vh', backgroundColor: '#F8F8F7' }}>
       <SignInPage
         title={
-          <span className="font-light tracking-tighter">
+          <span style={{ fontWeight: 300, letterSpacing: '-0.02em' }}>
             Welcome to <br />
-            <span className="font-semibold" style={{ color: '#607A94' }}>Thesis Copilot</span>
+            <span style={{ fontWeight: 600, color: '#607A94' }}>Thesis Copilot</span>
           </span>
         }
         description={

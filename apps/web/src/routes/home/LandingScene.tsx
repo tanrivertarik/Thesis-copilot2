@@ -102,8 +102,7 @@ export function LandingScene() {
     { name: 'Home', url: '/', icon: Home },
     { name: 'Features', url: '#features', icon: Sparkles },
     { name: 'How It Works', url: '#process', icon: BookOpen },
-    { name: 'Pricing', url: '#pricing', icon: DollarSign },
-    { name: isAuthenticated ? 'Workspace' : 'Sign In', url: isAuthenticated ? '/workspace' : '/login', icon: Users }
+    { name: 'Pricing', url: '#pricing', icon: DollarSign }
   ];
 
   return (

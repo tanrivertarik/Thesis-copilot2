@@ -98,12 +98,14 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               fontWeight: 600,
               lineHeight: 1.2,
               margin: 0,
-              color: '#2D3748'
+              color: '#2D3748',
+              fontFamily: 'Lora, serif'
             }}>{title}</h1>
             <p style={{ 
               color: '#6B7280',
               fontSize: '1rem',
-              lineHeight: 1.5
+              lineHeight: 1.5,
+              fontFamily: 'Inter, sans-serif'
             }}>{description}</p>
 
             <form style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }} onSubmit={onSignIn}>
