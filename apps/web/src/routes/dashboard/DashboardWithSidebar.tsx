@@ -34,6 +34,8 @@ import { fetchProjects, fetchSources } from '../../lib/api';
 import { Sidebar, SidebarBody, SidebarLink } from '@/components/ui/sidebar';
 import { useAuth } from '../../app/providers/firebase/AuthProvider';
 
+const ONBOARDING_STORAGE_KEY = 'thesis-copilot:onboarding';
+
 export function DashboardWithSidebar() {
   const navigate = useNavigate();
   const toast = useToast();
@@ -52,7 +54,7 @@ export function DashboardWithSidebar() {
         setProjects(projectData);
 
         // Fetch sources for all projects to get total count
-        const sourcesPromises = projectData.map(p => 
+        const sourcesPromises = projectData.map(p =>
           fetchSources(p.id).catch(() => [] as Source[])
         );
         const sourcesArrays = await Promise.all(sourcesPromises);
@@ -74,6 +76,10 @@ export function DashboardWithSidebar() {
   }, [toast]);
 
   const handleCreateProject = () => {
+    // Clear localStorage to start fresh onboarding
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    }
     navigate('/onboarding');
   };
 

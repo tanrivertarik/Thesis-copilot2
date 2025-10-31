@@ -7,6 +7,7 @@ import { ProjectDetailsStep } from './onboarding/ProjectDetailsStep';
 import { DeepResearchStep } from './onboarding/DeepResearchStep';
 import { ResearchInputsStep } from './onboarding/ResearchInputsStep';
 import { SummaryStep } from './onboarding/SummaryStep';
+import { ThesisMetadataStep } from './onboarding/ThesisMetadataStep';
 import { Dashboard } from './dashboard/Dashboard';
 import { DashboardWithSidebar } from './dashboard/DashboardWithSidebar';
 import { WorkspaceHome } from './workspace/WorkspaceHome';
@@ -65,6 +66,10 @@ const router = createBrowserRouter([
           {
             path: 'summary',
             element: <SummaryStep />
+          },
+          {
+            path: 'metadata',
+            element: <ThesisMetadataStep />
           }
         ]
       },

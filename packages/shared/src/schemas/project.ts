@@ -3,6 +3,7 @@ import {
   CitationStyleSchema,
   IdSchema,
   ThesisConstitutionSchema,
+  ThesisMetadataSchema,
   TimestampSchema
 } from './common.js';
 
@@ -18,6 +19,7 @@ export const ProjectSchema = z.object({
   citationStyle: CitationStyleSchema,
   targetWordCount: z.number().int().min(1000).max(100000).optional(), // Target thesis length in words
   constitution: ThesisConstitutionSchema.optional(),
+  thesisMetadata: ThesisMetadataSchema.optional(), // Complete thesis metadata for professional formatting
   visibility: ProjectVisibilitySchema.default('PRIVATE'),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema
@@ -31,9 +33,11 @@ export const ProjectCreateSchema = ProjectSchema.pick({
   citationStyle: true,
   targetWordCount: true,
   visibility: true,
-  constitution: true
+  constitution: true,
+  thesisMetadata: true
 }).extend({
-  constitution: ThesisConstitutionSchema.optional()
+  constitution: ThesisConstitutionSchema.optional(),
+  thesisMetadata: ThesisMetadataSchema.optional()
 });
 
 export const ProjectUpdateSchema = ProjectCreateSchema.partial();

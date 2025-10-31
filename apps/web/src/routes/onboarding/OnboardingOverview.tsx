@@ -27,12 +27,18 @@ type OnboardingStep = {
 
 export function OnboardingOverview() {
   const navigate = useNavigate();
-  const { project, ingestionResult } = useOnboarding();
+  const { project, ingestionResult, startNewProject } = useOnboarding();
 
   const handleNext = useCallback(() => {
     navigate('/onboarding/start');
     return false;
   }, [navigate]);
+
+  const handleStartQuestionnaire = useCallback(() => {
+    // Clear any existing project to start fresh
+    startNewProject();
+    navigate('/onboarding/start');
+  }, [startNewProject, navigate]);
 
   const navigationHandlers = useMemo(() => ({ onNext: handleNext }), [handleNext]);
 
@@ -231,7 +237,7 @@ export function OnboardingOverview() {
           <Button
             colorScheme="brand"
             size="lg"
-            onClick={() => navigate('/onboarding/start')}
+            onClick={handleStartQuestionnaire}
           >
             Start questionnaire
           </Button>

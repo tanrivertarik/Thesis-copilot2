@@ -67,6 +67,14 @@ export async function createProject(
     project.constitution = input.constitution;
   }
 
+  if (input.targetWordCount !== undefined) {
+    project.targetWordCount = input.targetWordCount;
+  }
+
+  if (input.thesisMetadata) {
+    project.thesisMetadata = input.thesisMetadata;
+  }
+
   await db.collection(COLLECTION).doc(id).set(project);
   return project;
 }
@@ -98,12 +106,26 @@ export async function updateProject(
     updated.constitution = existing.constitution;
   }
 
+  if (input.targetWordCount === undefined) {
+    updated.targetWordCount = existing.targetWordCount;
+  }
+
+  if (input.thesisMetadata === undefined) {
+    updated.thesisMetadata = existing.thesisMetadata;
+  }
+
   const toWrite = { ...updated } as Record<string, unknown>;
   if (toWrite.thesisStatement === undefined) {
     delete toWrite.thesisStatement;
   }
   if (toWrite.constitution === undefined) {
     delete toWrite.constitution;
+  }
+  if (toWrite.targetWordCount === undefined) {
+    delete toWrite.targetWordCount;
+  }
+  if (toWrite.thesisMetadata === undefined) {
+    delete toWrite.thesisMetadata;
   }
 
   await docRef.set(toWrite, { merge: true });

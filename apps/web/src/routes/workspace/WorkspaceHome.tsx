@@ -22,6 +22,7 @@ import {
   ModalOverlay,
   NumberInput,
   NumberInputField,
+  Select,
   Skeleton,
   Stack,
   Text,
@@ -691,9 +692,40 @@ export function WorkspaceHome() {
     );
   }
 
+  const handleProjectChange = (newProjectId: string) => {
+    const newProject = projects.find(p => p.id === newProjectId);
+    if (newProject) {
+      setProject(newProject);
+      setSelectedSectionId(null);
+      setDraftPreview('');
+      setRetrievalPreview([]);
+      navigate(`/workspace?projectId=${newProjectId}`);
+    }
+  };
+
   return (
     <PageShell
-      title={project.title}
+      title={
+        <VStack align="flex-start" spacing={2}>
+          <Text fontSize="2xl" fontWeight="bold" color="gray.800">{project.title}</Text>
+          {projects.length > 1 && (
+            <Select
+              value={project.id}
+              onChange={(e) => handleProjectChange(e.target.value)}
+              size="sm"
+              maxW="300px"
+              bg="white"
+              borderColor="gray.300"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </Select>
+          )}
+        </VStack>
+      }
       description="Outline your thesis, prepare evidence, and move sections into the writer."
       actions={
         <HStack spacing={3}>

@@ -11,7 +11,8 @@ import type {
   Project,
   ProjectCreateInput,
   ProjectUpdateInput,
-  SourceIngestionResult
+  SourceIngestionResult,
+  ThesisMetadata
 } from '@thesis-copilot/shared';
 import {
   createProject,
@@ -28,6 +29,7 @@ export type ProjectFormValues = {
   thesisStatement?: string;
   citationStyle: ProjectCreateInput['citationStyle'];
   targetWordCount?: number;
+  thesisMetadata?: ThesisMetadata;
 };
 
 export type ResearchFormValues = {
@@ -63,6 +65,7 @@ type OnboardingContextValue = {
   updateResearchDraft: (updates: Partial<ResearchFormValues>) => void;
   resetResearchDraft: (draft?: ResearchFormValues) => void;
   reloadProject: () => Promise<Project | null>;
+  startNewProject: () => void;
   navigationHandlers: OnboardingNavigationHandlers;
   registerNavigationHandlers: (handlers: OnboardingNavigationHandlers) => () => void;
 };
@@ -92,7 +95,8 @@ function projectToDraft(project: Project): ProjectFormValues {
     researchQuestions: project.researchQuestions?.join('\n') ?? '',
     thesisStatement: project.thesisStatement ?? '',
     citationStyle: project.citationStyle ?? 'APA',
-    targetWordCount: project.targetWordCount ?? 10000
+    targetWordCount: project.targetWordCount ?? 10000,
+    thesisMetadata: project.thesisMetadata
   };
 }
 
@@ -116,10 +120,19 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const hasHydratedFromStorage = useRef(false);
   const storageProvidedProjectDraft = useRef(false);
+  const isCreatingNewProject = useRef(false);
+
   const loadLatestProject = useCallback(async () => {
     try {
       const projects = await fetchProjects();
       const latestProject = projects[0] ?? null;
+
+      // Don't auto-load project if we're explicitly creating a new one
+      if (isCreatingNewProject.current) {
+        setProject(null);
+        return null;
+      }
+
       setProject(latestProject);
       if (latestProject && !storageProvidedProjectDraft.current) {
         setProjectDraft(projectToDraft(latestProject));
@@ -203,6 +216,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         thesisStatement: values.thesisStatement,
         citationStyle: values.citationStyle,
         targetWordCount: values.targetWordCount,
+        thesisMetadata: values.thesisMetadata,
         visibility: 'PRIVATE',
         constitution: undefined
       };
@@ -213,6 +227,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         saved = await updateProject(project.id, updatePayload);
       } else {
         saved = await createProject(payload);
+        // Reset the flag after creating a new project
+        isCreatingNewProject.current = false;
       }
       setProject(saved);
       setProjectDraft(values);
@@ -289,6 +305,23 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setResearchDraft(draft ?? defaultResearchDraft);
   }, []);
 
+  const startNewProject = useCallback(() => {
+    // Set flag to prevent auto-loading existing project
+    isCreatingNewProject.current = true;
+
+    // Clear the current project to force creation of a new one
+    setProject(null);
+    setProjectDraft(defaultProjectDraft);
+    setResearchDraft(defaultResearchDraft);
+    setIngestionResult(null);
+    setProjectError(null);
+
+    // Clear localStorage drafts
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
   const registerNavigationHandlers = useCallback((handlers: OnboardingNavigationHandlers) => {
     setNavigationHandlers((prev) => {
       if (prev.onNext === handlers.onNext && prev.onPrevious === handlers.onPrevious) {
@@ -325,6 +358,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       updateResearchDraft,
       resetResearchDraft,
       reloadProject,
+      startNewProject,
       navigationHandlers,
       registerNavigationHandlers
     }),
@@ -346,6 +380,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       updateResearchDraft,
       resetResearchDraft,
       reloadProject,
+      startNewProject,
       navigationHandlers,
       registerNavigationHandlers
     ]
