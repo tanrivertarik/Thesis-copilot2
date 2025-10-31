@@ -16,6 +16,7 @@ export const ProjectSchema = z.object({
   researchQuestions: z.array(z.string().min(1)),
   thesisStatement: z.string().optional(),
   citationStyle: CitationStyleSchema,
+  targetWordCount: z.number().int().min(1000).max(100000).optional(), // Target thesis length in words
   constitution: ThesisConstitutionSchema.optional(),
   visibility: ProjectVisibilitySchema.default('PRIVATE'),
   createdAt: TimestampSchema,
@@ -28,6 +29,7 @@ export const ProjectCreateSchema = ProjectSchema.pick({
   researchQuestions: true,
   thesisStatement: true,
   citationStyle: true,
+  targetWordCount: true,
   visibility: true,
   constitution: true
 }).extend({

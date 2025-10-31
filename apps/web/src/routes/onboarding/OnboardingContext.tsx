@@ -27,6 +27,7 @@ export type ProjectFormValues = {
   researchQuestions: string;
   thesisStatement?: string;
   citationStyle: ProjectCreateInput['citationStyle'];
+  targetWordCount?: number;
 };
 
 export type ResearchFormValues = {
@@ -75,7 +76,8 @@ const defaultProjectDraft: ProjectFormValues = {
   topic: '',
   researchQuestions: '',
   thesisStatement: '',
-  citationStyle: 'APA'
+  citationStyle: 'APA',
+  targetWordCount: 10000 // Default to medium length (Masters level)
 };
 
 const defaultResearchDraft: ResearchFormValues = {
@@ -89,7 +91,8 @@ function projectToDraft(project: Project): ProjectFormValues {
     topic: project.topic ?? '',
     researchQuestions: project.researchQuestions?.join('\n') ?? '',
     thesisStatement: project.thesisStatement ?? '',
-    citationStyle: project.citationStyle ?? 'APA'
+    citationStyle: project.citationStyle ?? 'APA',
+    targetWordCount: project.targetWordCount ?? 10000
   };
 }
 
@@ -199,6 +202,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           .filter(Boolean),
         thesisStatement: values.thesisStatement,
         citationStyle: values.citationStyle,
+        targetWordCount: values.targetWordCount,
         visibility: 'PRIVATE',
         constitution: undefined
       };

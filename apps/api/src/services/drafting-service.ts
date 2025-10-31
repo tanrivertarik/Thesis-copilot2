@@ -52,11 +52,22 @@ export async function generateSectionDraft(
       );
     }
 
+    const targetWords = request.section.expectedLength || 500;
+    const minWords = Math.floor(targetWords * 0.9); // 90% of target
+    const maxWords = Math.ceil(targetWords * 1.1); // 110% of target
+
     const systemPrompt = `
 You are Thesis Copilot, an academic writing assistant.
 Produce factual, citation-aligned prose using ONLY the provided source excerpts.
 When referencing a source chunk, insert [CITE:{chunkId}] where {chunkId} is the provided id.
 Maintain a formal academic tone and avoid hallucinations.
+
+CRITICAL LENGTH REQUIREMENT:
+- Target word count: ${targetWords} words
+- Acceptable range: ${minWords}-${maxWords} words
+- You MUST stay within this range
+- Stop writing immediately when you reach the target
+- If you need to cut content to fit the limit, prioritize the most important points
 `;
 
     const chunkContext = request.chunks
@@ -81,19 +92,33 @@ Thesis Constitution Summary:
 Source Evidence:
 ${chunkContext}
 
-Instructions:
-- Produce between 2 and 4 paragraphs unless otherwise implied by section goal.
-- Reference specific evidence with [CITE:{chunkId}].
-- Do not invent citations or mention source IDs not listed above.
-- Mention uncertainties or gaps explicitly.
+LENGTH REQUIREMENTS (CRITICAL - DO NOT IGNORE):
+- You MUST write exactly ${targetWords} words (±10%)
+- Acceptable range: ${minWords} to ${maxWords} words
+- Count your words as you write
+- If approaching ${maxWords} words, conclude your point and stop immediately
+- Better to be slightly under target than over
+
+CONTENT INSTRUCTIONS:
+- Reference specific evidence with [CITE:{chunkId}]
+- Do not invent citations or mention source IDs not listed above
+- Mention uncertainties or gaps explicitly
+- Use ${Math.ceil(targetWords / 150)}-${Math.ceil(targetWords / 100)} paragraphs (rough estimate: 100-150 words per paragraph)
+
+START WRITING NOW - Remember the ${targetWords} word target!
 `;
+
+    // Calculate appropriate max tokens based on target word count
+    // Rough formula: words * 1.5 tokens per word, plus 20% buffer for formatting/citations
+    const calculatedMaxTokens = Math.ceil(maxWords * 1.5 * 1.2);
+    const finalMaxTokens = Math.min(calculatedMaxTokens, request.maxTokens || 100000);
 
     // Generate draft with retry logic
     const response = await withRetry(
       () => generateChatCompletion({
         systemPrompt,
         userPrompt,
-        maxTokens: request.maxTokens,
+        maxTokens: finalMaxTokens,
         temperature: 0.7
       }),
       {
@@ -110,6 +135,10 @@ Instructions:
       );
     }
 
+    // Count actual words in the output
+    const actualWordCount = response.output.trim().split(/\s+/).length;
+    const isWithinTarget = actualWordCount >= minWords && actualWordCount <= maxWords;
+
     const usedChunkIds = request.chunks.map((chunk) => chunk.id);
     const duration = performance.now() - startTime;
 
@@ -120,9 +149,26 @@ Instructions:
     }, {
       chunkCount: request.chunks.length,
       outputLength: response.output.length,
+      targetWords,
+      actualWordCount,
+      isWithinTarget,
+      wordCountPercentage: Math.round((actualWordCount / targetWords) * 100),
       tokenUsage: response.usage,
-      temperature: 0.35
+      temperature: 0.7
     });
+
+    // Log warning if significantly over/under target
+    if (!isWithinTarget) {
+      logger.warn('Draft word count outside target range', {
+        userId: ownerId,
+        projectId: request.projectId,
+        sectionId: request.sectionId,
+        targetWords,
+        actualWordCount,
+        difference: actualWordCount - targetWords,
+        percentageOfTarget: Math.round((actualWordCount / targetWords) * 100)
+      });
+    }
 
     return {
       draft: response.output,

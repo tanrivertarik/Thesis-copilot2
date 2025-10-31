@@ -208,6 +208,36 @@ export function ProjectDetailsStep() {
               </Stack>
             </FormControl>
 
+            {/* Target Thesis Length */}
+            <FormControl isRequired>
+              <Stack spacing={2}>
+                <FormLabel color="academic.primaryText" fontWeight="medium" fontSize="md">
+                  Target Thesis Length
+                </FormLabel>
+                <Text color="academic.secondaryText" fontSize="sm" mb={1}>
+                  How long should your thesis be? This helps us generate an appropriate outline and manage costs.
+                </Text>
+                <Select
+                  value={projectDraft.targetWordCount || 10000}
+                  onChange={(event) =>
+                    updateProjectDraft({
+                      targetWordCount: parseInt(event.target.value, 10)
+                    })
+                  }
+                  size="lg"
+                >
+                  <option value={5000}>Short (5,000 words / ~20 pages) - Undergraduate</option>
+                  <option value={10000}>Medium (10,000 words / ~40 pages) - Masters</option>
+                  <option value={15000}>Long (15,000 words / ~60 pages) - Extended Masters</option>
+                  <option value={25000}>Very Long (25,000 words / ~100 pages) - PhD Chapter</option>
+                  <option value={50000}>Full Dissertation (50,000 words / ~200 pages) - PhD</option>
+                </Select>
+                <Text fontSize="xs" color="academic.secondaryText" fontStyle="italic">
+                  💡 Tip: Start with a shorter target for freemium. You can expand sections later in your workspace.
+                </Text>
+              </Stack>
+            </FormControl>
+
             {/* Citation Style */}
             <FormControl isRequired>
               <Stack spacing={2}>

@@ -35,30 +35,34 @@ You must generate constitutions that are:
 
 Always provide specific, actionable guidance that helps students maintain consistency and quality throughout their writing process.`;
 
-const buildConstitutionPrompt = (context: ConstitutionGenerationContext): string => {
-  const { 
-    projectTitle, 
-    topic, 
-    researchQuestions, 
-    academicLevel, 
+const buildConstitutionPrompt = (context: ConstitutionGenerationContext, targetWordCount?: number): string => {
+  const {
+    projectTitle,
+    topic,
+    researchQuestions,
+    academicLevel,
     discipline,
     thesisStatement,
-    existingSourceSummaries 
+    existingSourceSummaries
   } = context;
+
+  // Use project's target word count if provided, otherwise fall back to level-based guidance
+  const totalWords = targetWordCount || 10000;
+  const totalPages = Math.round(totalWords / 250); // ~250 words per page
 
   const levelGuidance = {
     UNDERGRADUATE: {
-      lengthGuidance: "typical undergraduate sections (15-25 pages total)",
+      lengthGuidance: targetWordCount ? `approximately ${totalWords.toLocaleString()} words (${totalPages} pages total)` : "typical undergraduate sections (15-25 pages total)",
       complexityNote: "appropriate depth for undergraduate research with clear, accessible analysis",
       sectionCount: "5-7 main sections including introduction, literature review, methodology, analysis, and conclusion"
     },
     MASTERS: {
-      lengthGuidance: "typical masters thesis sections (40-80 pages total)", 
+      lengthGuidance: targetWordCount ? `approximately ${totalWords.toLocaleString()} words (${totalPages} pages total)` : "typical masters thesis sections (40-80 pages total)",
       complexityNote: "advanced analysis with original insights and comprehensive methodology",
       sectionCount: "6-8 main sections with detailed methodology and substantial analysis chapters"
     },
     PHD: {
-      lengthGuidance: "comprehensive doctoral dissertation sections (150-300 pages total)",
+      lengthGuidance: targetWordCount ? `approximately ${totalWords.toLocaleString()} words (${totalPages} pages total)` : "comprehensive doctoral dissertation sections (150-300 pages total)",
       complexityNote: "original contribution to knowledge with rigorous methodology and extensive analysis",
       sectionCount: "8-12 detailed sections including multiple analysis chapters and comprehensive literature review"
     }
@@ -104,10 +108,13 @@ ${existingSourceSummaries.map((summary, i) => `${i + 1}. ${summary}`).join('\n')
 
 **Section Guidelines:**
 - Each section should have a clear, specific objective
-- Expected lengths should total approximately ${guidance.lengthGuidance.match(/\d+-\d+/)?.[0] || '50-100'} pages (assuming ~250 words per page)
+- Expected lengths should total approximately ${totalWords.toLocaleString()} words across all sections
+- Distribute word count proportionally: Introduction (10%), Literature Review (20%), Methodology (15%), Analysis/Results (30%), Discussion (15%), Conclusion (10%)
 - Include traditional academic sections: Introduction, Literature Review, Methodology, Analysis/Results, Discussion, Conclusion
 - Add discipline-specific sections as appropriate (e.g., Case Studies, Theoretical Framework, etc.)
 - Ensure logical progression that builds toward the core argument
+
+CRITICAL: The section expectedLength values MUST add up to approximately ${totalWords.toLocaleString()} words total. This is non-negotiable.
 
 Generate a constitution that provides clear, actionable guidance for maintaining academic rigor and consistency throughout the writing process.`;
 };
@@ -246,8 +253,8 @@ export async function generateConstitution(
     existingSourceSummaries
   };
 
-  // Generate constitution using AI
-  const prompt = buildConstitutionPrompt(context);
+  // Generate constitution using AI with target word count
+  const prompt = buildConstitutionPrompt(context, project.targetWordCount);
 
   const response = await generateChatCompletion({
     model: GENERATION_MODEL,
