@@ -2,8 +2,10 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import { LandingScene } from './home/LandingScene';
 import { OnboardingLayout } from './onboarding/OnboardingLayout';
+import { ProfessionalOnboardingLayout } from './onboarding/ProfessionalOnboardingLayout';
 import { OnboardingOverview } from './onboarding/OnboardingOverview';
 import { ProjectDetailsStep } from './onboarding/ProjectDetailsStep';
+import { ProfessionalProjectDetailsStep } from './onboarding/ProfessionalProjectDetailsStep';
 import { DeepResearchStep } from './onboarding/DeepResearchStep';
 import { ResearchInputsStep } from './onboarding/ResearchInputsStep';
 import { SummaryStep } from './onboarding/SummaryStep';
@@ -62,7 +64,7 @@ const router = createBrowserRouter([
         path: 'onboarding',
         element: (
           <RequireAuth>
-            <OnboardingLayout />
+            <ProfessionalOnboardingLayout />
           </RequireAuth>
         ),
         children: [
@@ -72,7 +74,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'start',
-            element: <ProjectDetailsStep />
+            element: <ProfessionalProjectDetailsStep />
           },
           {
             path: 'research',
