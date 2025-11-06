@@ -11,6 +11,7 @@ import { ThesisMetadataStep } from './onboarding/ThesisMetadataStep';
 import { Dashboard } from './dashboard/Dashboard';
 import { DashboardWithSidebar } from './dashboard/DashboardWithSidebar';
 import { ImprovedDashboard } from './dashboard/ImprovedDashboard';
+import { ProfessionalDashboard } from './dashboard/ProfessionalDashboard';
 import { WorkspaceHome } from './workspace/WorkspaceHome';
 import { SourceManagement } from './workspace/sources/SourceManagement';
 import { EditorShell } from './editor/EditorShell';
@@ -26,6 +27,14 @@ const router = createBrowserRouter([
   },
   {
     path: '/dashboard',
+    element: (
+      <RequireAuth>
+        <ProfessionalDashboard />
+      </RequireAuth>
+    )
+  },
+  {
+    path: '/dashboard-v2',
     element: (
       <RequireAuth>
         <ImprovedDashboard />
