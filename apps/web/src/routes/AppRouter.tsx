@@ -15,6 +15,7 @@ import { SourceManagement } from './workspace/sources/SourceManagement';
 import { EditorShell } from './editor/EditorShell';
 import { Login } from './auth/Login';
 import { RequireAuth } from './shared/RequireAuth';
+import AnimationShowcase from './AnimationShowcase';
 
 const router = createBrowserRouter([
   // Standalone routes (no AppLayout wrapper)
@@ -104,6 +105,10 @@ const router = createBrowserRouter([
             <EditorShell />
           </RequireAuth>
         )
+      },
+      {
+        path: 'animation-showcase',
+        element: <AnimationShowcase />
       }
     ]
   }
