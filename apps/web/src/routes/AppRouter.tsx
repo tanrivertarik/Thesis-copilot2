@@ -10,11 +10,13 @@ import { SummaryStep } from './onboarding/SummaryStep';
 import { ThesisMetadataStep } from './onboarding/ThesisMetadataStep';
 import { Dashboard } from './dashboard/Dashboard';
 import { DashboardWithSidebar } from './dashboard/DashboardWithSidebar';
+import { ImprovedDashboard } from './dashboard/ImprovedDashboard';
 import { WorkspaceHome } from './workspace/WorkspaceHome';
 import { SourceManagement } from './workspace/sources/SourceManagement';
 import { EditorShell } from './editor/EditorShell';
 import { Login } from './auth/Login';
 import { RequireAuth } from './shared/RequireAuth';
+import AnimationShowcase from './AnimationShowcase';
 
 const router = createBrowserRouter([
   // Standalone routes (no AppLayout wrapper)
@@ -24,6 +26,14 @@ const router = createBrowserRouter([
   },
   {
     path: '/dashboard',
+    element: (
+      <RequireAuth>
+        <ImprovedDashboard />
+      </RequireAuth>
+    )
+  },
+  {
+    path: '/dashboard-old',
     element: (
       <RequireAuth>
         <DashboardWithSidebar />
@@ -104,6 +114,10 @@ const router = createBrowserRouter([
             <EditorShell />
           </RequireAuth>
         )
+      },
+      {
+        path: 'animation-showcase',
+        element: <AnimationShowcase />
       }
     ]
   }
